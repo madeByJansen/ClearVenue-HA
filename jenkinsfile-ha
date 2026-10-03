@@ -124,7 +124,7 @@ EOF
             }
         }
         // The signed screen release this venue hands to the screens that joined it
-        // (ClearSignage DP210): built from RESOLVED_REF, versioned APP_VERSION, signed with
+        // built from RESOLVED_REF, versioned APP_VERSION, signed with
         // the release job's own key, and placed in src/ where the image's COPY picks it up.
         // A published image must carry one — a venue that silently carried none would leave
         // every joined screen where it is — so only a dry run may go without the key.

@@ -1,8 +1,5 @@
 ---
-# Private app repository (Epic 119, owner-chosen). Added by URL in Home Assistant under
-# Settings → Add-ons → Add-on store → ⋮ → Repositories. Not listed publicly, which is
-# what keeps the licence-tier questions in ClearSignage's Epic 119 §Open questions rather
-# than in the critical path.
+# Added by URL in Home Assistant under Settings → Apps → Install app → ⋮ → Repositories.
 name: ClearVenue
 url: https://github.com/madeByJansen/ClearVenue-HA
 maintainer: madeByJansen <nick@nickjansen.au>

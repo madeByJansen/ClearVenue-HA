@@ -11,11 +11,10 @@ It is also where this building's **occupancy** is counted and kept.
 
 ## Release channels
 
-The repository offers ClearVenue (stable), ClearVenue Beta and ClearVenue Dev. Stable
-tracks upstream `prod`, beta tracks `beta`, and dev tracks `main`. Each is a separate app
-with independent data and image updates. Switching apps does not copy venue data.
-Run only one channel at a time on a host: they use host networking and the same ports.
-Use separate Home Assistant hosts for simultaneous testing.
+The repository offers ClearVenue, ClearVenue Beta and ClearVenue Dev. ClearVenue is for a
+venue in service; Beta is the next release early; Dev is work in progress. Each is a
+separate app with its own data, and switching apps does not copy venue data. Run only one
+at a time on a machine: they use host networking and the same ports.
 
 ## Installing
 
@@ -40,11 +39,11 @@ this repository — so rotating it is a change on each install and nothing here.
 | `log_level` | `info` | |
 
 **Set `host_ip` yourself if this machine runs a VPN.** Tailscale, ZeroTier and the like give
-the machine an address that is not on your own network, and until recently this app could pick
-it — after which screens are told to reach the venue somewhere they cannot, and *nothing looks
-wrong*: the panel opens, the pages load, and only syncing quietly never happens. The app
-prefers a local address now and logs which one it chose and why, but you know which network
-your screens are on and this is where you say so. It is also shown on the **Screens** page.
+the machine an address that is not on your own network. Screens told to reach the venue there
+cannot, and *nothing looks wrong*: the panel opens, the pages load, and only syncing quietly
+never happens. The app prefers a local address and logs which one it chose and why, but you
+know which network your screens are on and this is where you say so. It is also shown on the
+**Screens** page.
 
 ## Reaching a screen
 

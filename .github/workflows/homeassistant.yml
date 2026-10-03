@@ -131,7 +131,7 @@ jobs:
           echo "Building ClearSignage ${{ steps.source.outputs.revision }} as app version ${version}"
 
       # The signed screen release this venue hands to the screens that joined it
-      # (ClearSignage DP210), the same step jenkinsfile-ha runs. A published image must carry
+      # — the same step jenkinsfile-ha runs. A published image must carry
       # one, so publishing without the UPDATE_SIGNING_PRIVATE_KEY secret stops here.
       - name: Build the screen release
         env:

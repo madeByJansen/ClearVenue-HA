@@ -1,21 +1,21 @@
 #!/usr/bin/env bash
-# Fetch the ClearSignage source into the build context (Epic 119 Pass 4).
+# Fetch the ClearSignage source into the build context.
 #
 # This repository holds packaging and nothing else. ClearSignage's source is fetched at
-# build time rather than vendored, for the reason DP34 already gives about role
+# build time rather than vendored, for the same reason as role
 # applications: another product's *source* does not enter a repo that is not its own —
 # its built artefact does. Keeping that line here means this repo can never quietly fork
 # the runtime it is supposed to package.
 #
 # Only five paths are copied, and the omissions are the point: `hosted/` is the
 # supervisor, `device/` is one screen, `shared/` is the single-sourced operator UI, and
-# `clearvenue/` is the venue role this add-on runs (DP92) — the till, enrolment, and the
+# `clearvenue/` is the venue role this add-on runs — the till, enrolment, and the
 # replication lane that feeds a screen its prices. The appliance's image builder, its
 # systemd units, its Android port and the cloud Worker are all absent, because a hosted
 # instance is none of those things.
 #
 # `event_share/` runs nowhere in this image. It is the small PHP service a venue deploys to
-# its own web hosting (DP157), and the venue builds that release from this source on the
+# its own web hosting, and the venue builds that release from this source on the
 # press of *Deploy* — so without it every deploy failed on its first read of
 # event_share/app/VERSION, as a 500.
 #

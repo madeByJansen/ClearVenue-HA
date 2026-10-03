@@ -1,6 +1,6 @@
 #!/usr/bin/with-contenv bashio
 # shellcheck shell=bash
-# Bring the whole app down when the supervisor exits (Epic 119 Pass 4).
+# Bring the whole app down when the supervisor exits.
 #
 # Without this, s6 restarts only this service and the app looks healthy while every
 # screen is gone. Home Assistant's own restart policy is the right thing to own a crash,
