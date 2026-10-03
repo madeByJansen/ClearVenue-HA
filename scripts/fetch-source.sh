@@ -36,30 +36,35 @@ if [ -n "${CLEARSIGNAGE_REF_OVERRIDE:-}" ] && [[ ! "${REF}" =~ ^[0-9a-f]{40}$ ]]
 fi
 REPO="${CLEARSIGNAGE_REPO:-https://github.com/madeByJansen/clearsignage.git}"
 DEST="${HERE}/${ADDON_DIR}/src"
-WORK="$(mktemp -d)"
-trap 'rm -rf "${WORK}"' EXIT
+# The checkout is kept beside the build context rather than in a temporary folder, so the
+# venue bundle (build-venue-bundle.sh) is built from this same commit without fetching it
+# again. Both pipelines remove it with src/ when they finish.
+CHECKOUT="${HERE}/.upstream/clearsignage"
+rm -rf "${CHECKOUT}"
+mkdir -p "$(dirname "${CHECKOUT}")"
 
 echo "Fetching ${REPO} @ ${REF}"
-git clone --quiet --depth 1 --branch "${REF}" "${REPO}" "${WORK}/clearsignage" 2>/dev/null \
+git clone --quiet --depth 1 --branch "${REF}" "${REPO}" "${CHECKOUT}" 2>/dev/null \
     || {
         # A commit SHA cannot be cloned with --branch; fall back to fetching it directly.
-        git init --quiet "${WORK}/clearsignage"
-        git -C "${WORK}/clearsignage" remote add origin "${REPO}"
-        git -C "${WORK}/clearsignage" fetch --quiet --depth 1 origin "${REF}"
-        git -C "${WORK}/clearsignage" checkout --quiet FETCH_HEAD
+        rm -rf "${CHECKOUT}"
+        git init --quiet "${CHECKOUT}"
+        git -C "${CHECKOUT}" remote add origin "${REPO}"
+        git -C "${CHECKOUT}" fetch --quiet --depth 1 origin "${REF}"
+        git -C "${CHECKOUT}" checkout --quiet FETCH_HEAD
     }
 
 rm -rf "${DEST}"
 mkdir -p "${DEST}"
 for path in hosted device shared clearvenue event_share; do
-    cp -a "${WORK}/clearsignage/${path}" "${DEST}/${path}"
+    cp -a "${CHECKOUT}/${path}" "${DEST}/${path}"
 done
 
 # Tests are not shipped into an image an operator runs. They are run in ClearSignage's
 # own pipeline, against the same source this pinned.
 find "${DEST}" -type d -name tests -prune -exec rm -rf {} + 2>/dev/null || true
 
-RESOLVED="$(git -C "${WORK}/clearsignage" rev-parse HEAD)"
+RESOLVED="$(git -C "${CHECKOUT}" rev-parse HEAD)"
 printf '%s\n' "${RESOLVED}" > "${DEST}/CLEARSIGNAGE_REF"
 echo "Fetched ${RESOLVED} into ${DEST}"
 

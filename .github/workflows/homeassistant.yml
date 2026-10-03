@@ -161,6 +161,16 @@ jobs:
           python -m pip install --quiet cryptography pydantic
           ./scripts/build-screen-release.sh
 
+      # The ClearVenue bundle: the image is built from its contents, and it is published
+      # beside the image for venues that are not run by Home Assistant. jenkinsfile-ha runs
+      # the same step; a published bundle must be signed.
+      - name: Build the venue bundle
+        env:
+          BUNDLE_VERSION: ${{ steps.version.outputs.version }}
+          BUNDLE_REQUIRED: ${{ inputs.push }}
+          UPDATE_SIGNING_PRIVATE_KEY: ${{ secrets.UPDATE_SIGNING_PRIVATE_KEY }}
+        run: ./scripts/build-venue-bundle.sh
+
       - name: Log in to GHCR
         if: inputs.push
         uses: docker/login-action@v3
@@ -224,6 +234,14 @@ jobs:
             "${IMAGE}:${APP_VERSION}-amd64"
           docker buildx imagetools inspect "${IMAGE}:${APP_VERSION}"
 
+      - name: Publish the venue bundle
+        if: inputs.push
+        env:
+          GHCR_USERNAME: ${{ github.actor }}
+          GHCR_TOKEN: ${{ github.token }}
+          APP_VERSION: ${{ steps.version.outputs.version }}
+        run: ./scripts/push-venue-bundle.py --channel "${CHANNEL}" --version "${APP_VERSION}"
+
       - name: Record the published version
         if: inputs.push
         env:
@@ -250,6 +268,8 @@ jobs:
 
           ./scripts/record-published-version.sh
 
+      # Old images and bundles, and the tags of the releases they were (git uses the
+      # checkout's own credentials to delete them).
       - name: Prune old releases
         if: inputs.push
         env:
@@ -261,4 +281,4 @@ jobs:
 
       - name: Remove private source
         if: always()
-        run: rm -rf clearvenue/src clearvenue_beta/src clearvenue_dev/src
+        run: rm -rf clearvenue/src clearvenue_beta/src clearvenue_dev/src .upstream venue-release
