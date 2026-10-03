@@ -3,7 +3,7 @@ ARG BUILD_FROM
 FROM ${BUILD_FROM}
 
 # The ClearSignage source is fetched into the build context before the build, never
-# vendored into this repository (DP34's rule, applied here: no other product's *source*
+# vendored into this repository (no other product's *source*
 # lives in a repo that is not its own). scripts/fetch-source.sh does the fetch and pins
 # the ref; CI runs it, and so does a developer building locally.
 ARG CLEARSIGNAGE_REF=main
@@ -25,7 +25,7 @@ ENV PYTHONUNBUFFERED=1 \
     CLEARSIGNAGE_APP_DIR=/opt/clearsignage/device
 
 # avahi-utils supplies avahi-publish, which is how each screen's <name>.local is claimed
-# through the *host's* daemon over host_dbus (DP66). No avahi-daemon here: a second one
+# through the *host's* daemon over host_dbus. No avahi-daemon here: a second one
 # would contend with HA OS's for 5353 and lose. dbus is the client library only.
 #
 # iproute2 supplies `ip`, which the run script reads the host's address from when the
@@ -34,7 +34,7 @@ ENV PYTHONUNBUFFERED=1 \
 # single line: `ip` exited 127, and `set -o pipefail` turned that into a silent exit.
 #
 # No X, no feh, no mpv, no chromium. A hosted instance has no display to drive — the
-# browser framing /display is the screen (DP63) — so the entire appliance display stack
+# browser framing /display is the screen — so the entire appliance display stack
 # is absent rather than installed and unused.
 RUN apt-get update \
     && apt-get install --no-install-recommends -y \
@@ -62,7 +62,7 @@ RUN python3 -m venv /opt/venv \
         -c /opt/clearsignage/device/constraints.txt
 
 # Where the signed screen release scripts/build-screen-release.sh placed under src/ lands,
-# and where the venue serves it from to the screens that joined it (ClearSignage DP210).
+# and where the venue serves it from to the screens that joined it.
 # Stated rather than left to the venue's default, so a change to where the source is copied
 # is a change to this line and not a venue that quietly offers its screens nothing.
 ENV PATH="/opt/venv/bin:${PATH}" \

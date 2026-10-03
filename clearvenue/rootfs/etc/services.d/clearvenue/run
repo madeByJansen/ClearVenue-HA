@@ -1,6 +1,6 @@
 #!/usr/bin/with-contenv bashio
 # shellcheck shell=bash
-# Start ClearVenue, hosted by Home Assistant (Epic 119 Pass 4; DP92).
+# Start ClearVenue, hosted by Home Assistant.
 #
 # Everything here is translation: read what the operator set in the app's options, work
 # out the one thing they are allowed to leave blank, and exec. The decisions live in the
@@ -24,8 +24,8 @@ export CLEARVENUE_BUILD
 export CLEARSIGNAGE_HOST_IP
 export CLEARSIGNAGE_APP_DIR
 
-# Which platform is hosting the venue (DP92). Decides that Home Assistant has already
-# authenticated the operator, so no second sign-in is mounted (DP87), and that the app is
+# Which platform is hosting the venue. Decides that Home Assistant has already
+# authenticated the operator, so no second sign-in is mounted, and that the app is
 # served on two listeners rather than binding a privileged port itself.
 CLEARVENUE_HOST=home-assistant
 
@@ -43,8 +43,8 @@ fi
 # unset, and it agreeing with the Dockerfile is the point.
 CLEARSIGNAGE_APP_DIR="${CLEARSIGNAGE_APP_DIR:-/opt/clearsignage/device}"
 
-# The address peers reach this host at (DP65). Passed through when the operator stated one
-# and left empty otherwise — **the guessing moved into Python** (Epic 149).
+# The address peers reach this host at. Passed through when the operator stated one
+# and left empty otherwise — **the guessing is done in Python**.
 #
 # This used to ask `ip route get 1.1.1.1` and take the answer, which on a box running
 # Tailscale is the VPN's `100.x` address: every screen on the venue's wifi is then told to

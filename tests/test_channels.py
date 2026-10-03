@@ -131,6 +131,8 @@ def test_fetch_maps_channel_and_exact_commit_without_touching_other_apps(local_s
     assert (source / 'CLEARSIGNAGE_REF').read_text().strip() == shas[settings['branch']]
     assert (source / 'clearvenue/source_branch').read_text() == settings['branch']
     assert not (source / 'device/tests').exists()
+    # Kept, so the venue bundle is built from the same commit without fetching it again.
+    assert git(packaging / '.upstream/clearsignage', 'rev-parse', 'HEAD') == shas[settings['branch']]
     assert len(list(packaging.glob('*/src'))) == 1
     env['CLEARSIGNAGE_REF_OVERRIDE'] = shas['main']
     result = subprocess.run(command, env=env, capture_output=True, text=True)

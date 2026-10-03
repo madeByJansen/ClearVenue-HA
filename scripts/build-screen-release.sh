@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Build the signed screen release this venue hands to the screens that joined it.
 #
-# ClearSignage DP210: a screen joined to a venue takes its software from the venue rather
+# A screen joined to a venue takes its software from the venue rather
 # than from a download host, so updating this add-on is how a venue's wall screens are
 # updated. The venue does not build or sign anything at runtime — it serves the two files
 # it was shipped with, and the screen checks them against the key baked into its own build.

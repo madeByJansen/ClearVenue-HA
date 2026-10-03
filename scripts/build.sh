@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build the app image locally for one architecture (Epic 119 Pass 4).
+# Build the app image locally for one architecture.
 #
 # The same two steps CI runs: pin the source, then build. Kept as a script rather than a
 # README instruction because the build is worthless if the source step is skipped — the

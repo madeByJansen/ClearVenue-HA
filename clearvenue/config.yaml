@@ -1,9 +1,8 @@
 ---
-# ClearVenue as a Home Assistant app (Epic 119 Pass 4; renamed in Epic 149).
+# ClearVenue as a Home Assistant app.
 #
-# Every field below that is not boilerplate is a decision made in the epic, and the
-# comments say which one — because the interesting half of this file is what it does
-# *not* ask for.
+# The comments say why each field that is not boilerplate is set as it is — because the
+# interesting half of this file is what it does *not* ask for.
 #
 # Channel-specific identity. There are no legacy installs, so ClearVenue uses its product name as the stable slug.
 name: ClearVenue
@@ -46,26 +45,26 @@ arch:
   - amd64
 
 # The Supervisor terminates ingress and hands the app an authenticated operator. This is
-# the entry path that carries authority (DP64), and the only one that does.
+# the entry path that carries authority, and the only one that does.
 ingress: true
 ingress_port: 8099
 panel_icon: mdi:television-play
 panel_title: ClearVenue
-# Admin-only: the panel leads to screens that can be reconfigured, and DP64 treats an
+# Admin-only: the panel leads to screens that can be reconfigured, and the venue treats an
 # authenticated Home Assistant user as the authority for a live-state write.
 panel_admin: true
 
-# Required, not merely convenient (DP65). A hosted screen is a full LAN peer: it answers
+# Required, not merely convenient. A hosted screen is a full LAN peer: it answers
 # UDP 9876 discovery, is reached by peers at <host-ip>:810N for /sync/*, and publishes a
-# .local name (DP66). None of that is expressible through port mapping, because peers
+# .local name. None of that is expressible through port mapping, because peers
 # address the *host*, not a container port.
 #
 # The consequence is stated here rather than discovered later: with host_network the
 # instance ports are directly reachable on the LAN, so that path deliberately carries no
-# authority — see DP64 and the negative tests in ClearSignage's test_hosted_platform.py.
+# authority.
 host_network: true
 
-# The host's avahi publishes each screen's <name>.local (DP66). Home Assistant OS already
+# The host's avahi publishes each screen's <name>.local. Home Assistant OS already
 # owns 5353 — it is what answers homeassistant.local — so the app talks to that daemon
 # over D-Bus rather than running a second one that would contend for the port and lose.
 host_dbus: true
@@ -83,13 +82,13 @@ init: false
 # The fleet page answering is the honest liveness signal: it is served by the supervisor,
 # and a supervisor that cannot serve it cannot start or proxy a screen either.
 #
-# Deliberately *not* wired to whether the venue can read its own database (Epic 149): a
+# Deliberately *not* wired to whether the venue can read its own database: a
 # restart does not mend a damaged one, and reporting unhealthy would have the Supervisor
 # restarting this box in a loop while the person who needs to press *start again* cannot
 # reach the page that offers it.
 watchdog: "http://[HOST]:[PORT:8099]/"
 
-# **A file-level copy of a live database is not a backup** (Epic 149). The venue writes its
+# **A file-level copy of a live database is not a backup**. The venue writes its
 # state as three files at once — the database, its write-ahead log and the shared index —
 # and the Supervisor copies them moments apart while the kitchen is still pressing buttons.
 # What comes back is a database missing the last few hours, or one SQLite will not open.
@@ -123,10 +122,10 @@ backup_pre: /opt/venv/bin/python -m clearvenue.backup_hook
 options:
   # Empty means "this venue works it out for itself at start-up". Stated explicitly where a
   # host has several networks and the wrong one would have every screen advertise an
-  # endpoint that resolves nowhere useful (DP65).
+  # endpoint that resolves nowhere useful.
   #
   # **Worth stating on a box running a VPN.** The venue prefers an ordinary local address
-  # over a VPN one now (Epic 149, `clearvenue/own_address.py`), but the operator knows which
+  # over a VPN one, but the operator knows which
   # network the screens are on and this setting is how they say so.
   host_ip: ""
   log_level: info
