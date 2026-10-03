@@ -496,4 +496,29 @@ def test_actions_runs_the_same_steps_in_the_same_order():
     assert building["env"]["BUNDLE_VERSION"] == "${{ steps.version.outputs.version }}"
     publishing = steps[names.index("Publish the venue bundle")]
     assert publishing["if"] == "inputs.push"
+    assert publishing["env"]["GHCR_TOKEN"] == "${{ github.token }}"
     assert ".upstream venue-release" in steps[names.index("Remove private source")]["run"]
+
+
+def test_actions_can_publish_a_whole_release_without_jenkins():
+    """The workflow is the way to publish while Jenkins is down, so it needs every right
+    the Jenkins credentials give: push and delete packages, push the version commit, and
+    delete the tags of pruned releases — which it does with the checkout's own token."""
+    workflow = yaml.safe_load(
+        (REPO / ".github" / "workflows" / "homeassistant.yml").read_text(encoding="utf-8")
+    )
+    assert workflow["permissions"] == {"contents": "write", "packages": "write"}
+    assert "workflow_dispatch" in workflow[True], "it is started by a person, as Jenkins is"
+    steps = workflow["jobs"]["build"]["steps"]
+    checkout = next(step for step in steps if step.get("uses", "").startswith("actions/checkout"))
+    assert checkout.get("with", {}).get("persist-credentials") is True
+    names = [step["name"] for step in steps]
+    for jenkins_stage in (
+        "Build the screen release",
+        "Build the venue bundle",
+        "Publish the venue bundle",
+        "Record the published version",
+        "Prune old releases",
+    ):
+        assert f"stage('{jenkins_stage}')" in PIPELINE
+        assert jenkins_stage in names, f"Jenkins runs {jenkins_stage!r} and Actions does not"

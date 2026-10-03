@@ -44,8 +44,12 @@ jobs:
     timeout-minutes: 90
 
     steps:
+      # The workflow token stays configured for origin: recording the version pushes to main
+      # with it, and pruning deletes the tags of releases whose images are gone.
       - name: Check out packaging repository
         uses: actions/checkout@v4
+        with:
+          persist-credentials: true
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -130,9 +134,9 @@ jobs:
           printf 'version=%s\n' "${version}" >> "${GITHUB_OUTPUT}"
           echo "Building ClearSignage ${{ steps.source.outputs.revision }} as app version ${version}"
 
-      # The signed screen release this venue hands to the screens that joined it
-      # — the same step jenkinsfile-ha runs. A published image must carry
-      # one, so publishing without the UPDATE_SIGNING_PRIVATE_KEY secret stops here.
+      # The signed screen release this venue hands to the screens that joined it, the same
+      # step jenkinsfile-ha runs. A published image must carry one, so publishing without the
+      # UPDATE_SIGNING_PRIVATE_KEY secret stops here.
       - name: Build the screen release
         env:
           SCREEN_RELEASE_VERSION: ${{ steps.version.outputs.version }}
@@ -268,8 +272,8 @@ jobs:
 
           ./scripts/record-published-version.sh
 
-      # Old images and bundles, and the tags of the releases they were (git uses the
-      # checkout's own credentials to delete them).
+      # Old images and bundles, and the tags of the releases they were. Deleting a tag is a
+      # push, made with the credentials the checkout kept.
       - name: Prune old releases
         if: inputs.push
         env:
