@@ -104,20 +104,6 @@ def all_versions(owner: str, package: str, token: str, *, owner_kind: str, allow
     return versions
 
 
-def package_names(owner: str, token: str, *, owner_kind: str) -> set[str]:
-    names = set()
-    route = OWNER_ROUTES[owner_kind]
-    owner = urllib.parse.quote(owner, safe="")
-    url: str | None = f"https://api.github.com/{route}/{owner}/packages?package_type=container&per_page={PAGE_SIZE}"
-    while True:
-        with request(url, token) as response:
-            batch = json.load(response)
-            url = _next_url(response)
-        names.update(item["name"] for item in batch)
-        if url is None:
-            return names
-
-
 def tags_of(version: dict[str, object]) -> list[str]:
     """Return a version object's container tags, which an untagged manifest lacks."""
     metadata = version.get("metadata", {})

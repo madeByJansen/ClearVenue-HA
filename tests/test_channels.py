@@ -142,15 +142,11 @@ def test_fetch_maps_channel_and_exact_commit_without_touching_other_apps(local_s
     assert 'Fetching' not in result.stdout
 
 
-def test_new_package_bootstrap_requires_successful_owner_listing(monkeypatch):
+def test_new_package_bootstrap_treats_missing_package_as_no_releases(monkeypatch):
     def missing(url, token, method='GET'):
-        if '/versions' in url:
-            raise urllib.error.HTTPError(url, 404, 'missing', {}, None)
-        return APIResponse([{'name': 'clearvenue'}])
+        raise urllib.error.HTTPError(url, 404, 'missing', {}, None)
     monkeypatch.setattr(ghcr_api, 'request', missing)
     assert ghcr_api.all_versions('owner', 'clearvenue-dev', 'test', owner_kind='organization', allow_missing=True) == []
-    with pytest.raises(urllib.error.HTTPError):
-        ghcr_api.all_versions('owner', 'clearvenue', 'test', owner_kind='organization', allow_missing=True)
     with pytest.raises(urllib.error.HTTPError):
         ghcr_api.all_versions('owner', 'clearvenue-dev', 'test', owner_kind='organization')
     def denied(url, token, method='GET'):
@@ -184,13 +180,8 @@ def test_ghcr_pagination_follows_link_and_stops_without_one(monkeypatch):
 
 @pytest.mark.parametrize('kind,route', [('organization', 'orgs'), ('user', 'users')])
 def test_package_urls_make_owner_kind_explicit(monkeypatch, kind, route):
-    calls = []
-    monkeypatch.setattr(ghcr_api, 'request',
-                        lambda url, token, method='GET': calls.append(url) or APIResponse([]))
     assert ghcr_api.versions_url('an owner', 'an/app', kind) == (
         f'https://api.github.com/{route}/an%20owner/packages/container/an%2Fapp/versions')
-    assert ghcr_api.package_names('an owner', 'token', owner_kind=kind) == set()
-    assert calls == [f'https://api.github.com/{route}/an%20owner/packages?package_type=container&per_page=100']
 
 
 def test_http_error_reports_github_message_without_token(monkeypatch):
@@ -345,7 +336,7 @@ def test_legacy_cleanup_deletes_only_old_artifacts(monkeypatch, apply):
         if url.endswith('/releases') else [{'name': 'v20260928.01'}, {'name': 'dev/v20260929.01'}]))
     monkeypatch.setattr(ghcr_api, 'all_versions', lambda *args, **kwargs: [
         {'metadata': {'container': {'tags': ['20260929.01', '20260929.01-amd64', '20260929.01-aarch64']}}}])
-    monkeypatch.setattr(ghcr_api, 'package_names', lambda *args, **kwargs: {'clearsignage-ha', 'clearvenue', 'clearvenue-beta', 'clearvenue-dev'})
+    monkeypatch.setattr(cleanup, 'package_exists', lambda package, token: package == 'clearsignage-ha')
     monkeypatch.setattr(ghcr_api, 'request', lambda url, token, method: deleted.append((url, method)) or io.StringIO(''))
     monkeypatch.setenv('GHCR_TOKEN', 'fixture')
     monkeypatch.setattr(sys, 'argv', ['cleanup'] + (['--apply'] if apply else []))
