@@ -6,6 +6,12 @@ configuration:
       The address other screens on your network use to reach this machine. Leave blank to
       use the address on the default route. Set it when this machine has more than one
       address and screens should reach it on a particular one.
+  public_url:
+    name: Public address
+    description: >-
+      The https address a reverse proxy publishes ClearVenue at, for reaching it from outside
+      the building. Point the proxy at port 8098 on this machine. Leave blank to reach
+      ClearVenue only inside the building.
   log_level:
     name: Log level
     description: How much the app writes to its log. Leave at info unless you are chasing a fault.

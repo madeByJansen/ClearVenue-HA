@@ -11,11 +11,10 @@ It is also where this building's **occupancy** is counted and kept.
 
 ## Release channels
 
-The repository offers ClearVenue (stable), ClearVenue Beta and ClearVenue Dev. Stable
-tracks upstream `prod`, beta tracks `beta`, and dev tracks `main`. Each is a separate app
-with independent data and image updates. Switching apps does not copy venue data.
-Run only one channel at a time on a host: they use host networking and the same ports.
-Use separate Home Assistant hosts for simultaneous testing.
+The repository offers ClearVenue, ClearVenue Beta and ClearVenue Dev. ClearVenue is for a
+venue in service; Beta is the next release early; Dev is work in progress. Each is a
+separate app with its own data, and switching apps does not copy venue data. Run only one
+at a time on a machine: they use host networking and the same ports.
 
 ## Installing
 
@@ -40,19 +39,53 @@ this repository — so rotating it is a change on each install and nothing here.
 | `log_level` | `info` | |
 
 **Set `host_ip` yourself if this machine runs a VPN.** Tailscale, ZeroTier and the like give
-the machine an address that is not on your own network, and until recently this app could pick
-it — after which screens are told to reach the venue somewhere they cannot, and *nothing looks
-wrong*: the panel opens, the pages load, and only syncing quietly never happens. The app
-prefers a local address now and logs which one it chose and why, but you know which network
-your screens are on and this is where you say so. It is also shown on the **Screens** page.
+the machine an address that is not on your own network. Screens told to reach the venue there
+cannot, and *nothing looks wrong*: the panel opens, the pages load, and only syncing quietly
+never happens. The app prefers a local address and logs which one it chose and why, but you
+know which network your screens are on and this is where you say so. It is also shown on the
+**Screens** page.
+
+## Reaching ClearVenue from outside the building
+
+ClearVenue can be published on the internet through a reverse proxy — a Cloudflare tunnel,
+Nginx Proxy Manager or similar — without publishing Home Assistant itself.
+
+1. **Point the proxy at port `8098`** on this machine, and give it an https address of its own,
+   such as `https://venue.example.com`. Only port `8098`: this app's other ports, Home
+   Assistant's `8123` and each screen's `810N` are for inside the building, and answer anything
+   a proxy sends them with *"This address is for inside the building"* — which is how a wrong
+   port shows itself.
+
+   With Nginx Proxy Manager: point your name's `A` record at your public address, have your
+   router forward port `443` (and `80`, if the certificate is requested over HTTP) to the
+   machine running the proxy, then add a proxy host for the name with scheme `http`, this
+   machine's network address and port `8098`, and request an SSL certificate for it.
+2. **Set `public_url`** in this app's Configuration tab to that address, and restart the app.
+3. **Turn on Microsoft sign-in.** Open ClearVenue from the sidebar, then **Settings → Change how
+   people sign in**. Fill in your Microsoft app registration, using the redirect address the
+   page shows, save, and press **Test & enable Microsoft**. You finish signing in on the public
+   address and become its first administrator; invite anybody else from the same page.
+
+From outside the building, only Microsoft accounts you have made administrators can sign in,
+and once signed in they manage ClearVenue and open its screens as they would from the sidebar,
+without a screen's PIN — including the screens on your walls that joined ClearVenue. Kitchen and other staff screens, and anything else ClearVenue trusts
+because it is on your own network, are not available there and stay on your own network; your
+till's instant updates and your cameras still reach it. Inside the building nothing changes:
+the sidebar works as before.
 
 ## Reaching a screen
 
 Three ways, and they are not equivalent:
 
 - **From the Home Assistant sidebar.** Home Assistant has already signed you in, so this
-  is the path that can change what is on a screen. It also works from outside your home
-  through Nabu Casa, with no port forwarding.
+  is the path that can change what is on a screen, and it never asks for the screen's PIN.
+  It also works from outside your home through Nabu Casa, with no port forwarding. Until you
+  set a screen PIN in Settings, each new screen gets its own, shown on its card — that is the
+  PIN to type on the screen's own address.
+- **A screen on a wall that joined ClearVenue** opens from ClearVenue's Screens page,
+  under *Screens elsewhere in this venue* → **Open**. ClearVenue signs you in on that screen
+  for you, from the sidebar or from outside the building. Each screen can refuse this in its
+  own settings (*Let paired screens sign in here*), and its own address still asks for its PIN.
 - **`http://<host>:810N`** — how *other screens* find and sync with this one, and the
   address to put a screen's `/display` on a dashboard (see below). Not somewhere to go
   looking for settings.

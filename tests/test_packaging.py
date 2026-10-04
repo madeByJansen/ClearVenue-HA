@@ -838,3 +838,20 @@ def test_both_publishers_build_the_screen_release():
     assert building["env"]["CLEARSIGNAGE_REF"] == "${{ steps.source.outputs.revision }}"
     assert building["env"]["SCREEN_RELEASE_REQUIRED"] == "${{ inputs.push }}"
     assert building["env"]["UPDATE_SIGNING_PRIVATE_KEY"] == "${{ secrets.UPDATE_SIGNING_PRIVATE_KEY }}"
+
+
+def test_a_public_url_reaches_the_venue_only_when_the_operator_set_one():
+    """An empty or cleared option must not reach the venue as a public address of "null"."""
+    run = _service_script("run", uncommented=True)
+    assert "bashio::config 'public_url'" in run
+    assert 'if [ "${CLEARVENUE_PUBLIC_URL}" = "null" ]' in run
+    assert "unset CLEARVENUE_PUBLIC_URL" in run
+    assert CONFIG["options"]["public_url"] == ""
+    assert CONFIG["schema"]["public_url"] == "str?"
+
+
+def test_the_operator_is_told_how_to_reach_the_venue_from_outside():
+    docs = (APP / "DOCS.md").read_text()
+    assert "Reaching ClearVenue from outside the building" in docs
+    assert "port `8098`" in docs and "`public_url`" in docs
+    assert "Nginx Proxy Manager" in docs and "Only port `8098`" in docs

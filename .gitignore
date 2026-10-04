@@ -3,6 +3,9 @@
 clearvenue/src/
 clearvenue_beta/src/
 clearvenue_dev/src/
+# The checkout it was copied from, and the venue release built from it (build-venue-bundle.sh).
+.upstream/
+venue-release/
 .venv/
 __pycache__/
 .pytest_cache/

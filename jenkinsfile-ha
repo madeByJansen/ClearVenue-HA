@@ -124,7 +124,7 @@ EOF
             }
         }
         // The signed screen release this venue hands to the screens that joined it
-        // (ClearSignage DP210): built from RESOLVED_REF, versioned APP_VERSION, signed with
+        // built from RESOLVED_REF, versioned APP_VERSION, signed with
         // the release job's own key, and placed in src/ where the image's COPY picks it up.
         // A published image must carry one — a venue that silently carried none would leave
         // every joined screen where it is — so only a dry run may go without the key.
@@ -173,6 +173,35 @@ EOF
                 }
             }
         }
+        // The ClearVenue bundle: one archive per release, made by ClearSignage's own builder
+        // from RESOLVED_REF and carrying the screen release above. The image is built from its
+        // contents, and it is published beside the image for venues that are not run by Home
+        // Assistant. Signed with the same key; only a dry run may go without it.
+        stage('Build the venue bundle') {
+            steps {
+                script {
+                    def bundle = '''#!/usr/bin/env bash
+                        set -euo pipefail
+                        BUNDLE_VERSION="${APP_VERSION}" PYTHON="${WORKSPACE}/.venv/bin/python" \
+                            ./scripts/build-venue-bundle.sh
+                    '''
+                    try {
+                        withCredentials([
+                            string(credentialsId: 'update-signing-private-key', variable: 'UPDATE_SIGNING_PRIVATE_KEY')
+                        ]) {
+                            withEnv(["BUNDLE_REQUIRED=${params.PUSH}"]) {
+                                sh bundle
+                            }
+                        }
+                    } catch (org.jenkinsci.plugins.credentialsbinding.impl.CredentialNotFoundException missing) {
+                        if (params.PUSH) {
+                            error "No release signing key (${missing.message}): a published ClearVenue bundle must be signed."
+                        }
+                        sh bundle
+                    }
+                }
+            }
+        }
         stage('Build and publish') {
             steps {
                 sh '''#!/usr/bin/env bash
@@ -207,6 +236,19 @@ EOF
                 '''
             }
         }
+        // Before the version is recorded: until then nothing offers it, so a bundle that could
+        // not be published leaves a release no venue has been told about, on either platform.
+        stage('Publish the venue bundle') {
+            when { expression { params.PUSH } }
+            steps {
+                sh '''#!/usr/bin/env bash
+                    set -euo pipefail
+                    GHCR_USERNAME="${GHCR_USR}" GHCR_TOKEN="${GHCR_PSW}" \
+                        .venv/bin/python ./scripts/push-venue-bundle.py \
+                        --channel "${CHANNEL}" --version "${APP_VERSION}"
+                '''
+            }
+        }
         stage('Record the published version') {
             when { expression { params.PUSH } }
             steps {
@@ -235,14 +277,33 @@ EOF
                 }
             }
         }
+        // Old images and bundles, and the tags of the releases they were: a tag naming a
+        // release nobody can install any more is deleted with it.
         stage('Prune old releases') {
             when { expression { params.PUSH } }
             steps {
-                sh '''#!/usr/bin/env bash
-                    set -euo pipefail
-                    GHCR_TOKEN="${GHCR_PSW}" .venv/bin/python ./scripts/prune-ghcr-releases.py \
-                        --channel "${CHANNEL}" --current "${APP_VERSION}" --apply
-                '''
+                withCredentials([usernamePassword(
+                    credentialsId: 'GithubPAT-Workplain-com',
+                    usernameVariable: 'GIT_USERNAME', passwordVariable: 'GIT_PASSWORD'
+                )]) {
+                    sh '''#!/usr/bin/env bash
+                        set -euo pipefail
+                        ASKPASS_SCRIPT="$(mktemp)"
+                        trap 'rm -f "${ASKPASS_SCRIPT}"' EXIT
+                        cat > "${ASKPASS_SCRIPT}" <<'EOF'
+#!/usr/bin/env bash
+case "$1" in
+    *Username*) printf '%s\\n' "${GIT_USERNAME}" ;;
+    *Password*) printf '%s\\n' "${GIT_PASSWORD}" ;;
+    *) exit 1 ;;
+esac
+EOF
+                        chmod 700 "${ASKPASS_SCRIPT}"
+                        export GIT_ASKPASS="${ASKPASS_SCRIPT}" GIT_TERMINAL_PROMPT=0
+                        GHCR_TOKEN="${GHCR_PSW}" .venv/bin/python ./scripts/prune-ghcr-releases.py \
+                            --channel "${CHANNEL}" --current "${APP_VERSION}" --apply
+                    '''
+                }
             }
         }
     }
@@ -251,7 +312,7 @@ EOF
             sh '''#!/usr/bin/env bash
                 set +e
                 docker logout "${REGISTRY}"
-                rm -rf clearvenue/src clearvenue_beta/src clearvenue_dev/src .venv
+                rm -rf clearvenue/src clearvenue_beta/src clearvenue_dev/src .upstream venue-release .venv
             '''
         }
         success { echo "Completed ClearVenue ${env.CHANNEL} ${env.APP_VERSION}; PUSH=${params.PUSH}; upstream ${env.RESOLVED_REF}" }

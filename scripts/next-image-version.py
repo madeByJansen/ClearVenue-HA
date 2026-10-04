@@ -37,9 +37,10 @@ from channels import CHANNELS, channel_settings
 import ghcr_api  # noqa: E402  (the module sits beside this command, not on the path)
 import yaml  # noqa: E402
 
-# The per-architecture tags the pipeline pushes beside the multi-architecture manifest.
-# They carry the same version, so they are the same release for counting.
-ARCH_SUFFIXES = ("-aarch64", "-amd64")
+# The per-architecture tags the pipeline pushes beside the multi-architecture manifest, and
+# the ClearVenue bundle it publishes in the same package (push-venue-bundle.py). They carry
+# the same version, so they are the same release for counting.
+ARCH_SUFFIXES = ("-aarch64", "-amd64", "-bundle")
 
 # The manifest's own version line. Anchored to the start of a line so it cannot match
 # `ingress_port` or anything else that merely ends in the word.
