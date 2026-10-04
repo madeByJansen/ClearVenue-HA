@@ -128,8 +128,14 @@ options:
   # over a VPN one, but the operator knows which
   # network the screens are on and this setting is how they say so.
   host_ip: ""
+  # Empty means this venue is reached only inside the building. Set it to the https address
+  # a reverse proxy publishes the venue at, with the proxy pointed at port 8098 on this
+  # machine: the venue then answers there too, signs people in there only with an identity
+  # provider, and serves there nothing it trusts because it is in the building.
+  public_url: ""
   log_level: info
 
 schema:
   host_ip: "str?"
+  public_url: "str?"
   log_level: "list(trace|debug|info|notice|warning|error|fatal)"

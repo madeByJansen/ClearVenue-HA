@@ -64,6 +64,17 @@ if bashio::var.is_empty "${CLEARSIGNAGE_HOST_IP}"; then
     bashio::log.info "Set host_ip in the app options if screens should reach this host elsewhere."
 fi
 
+# Where a reverse proxy publishes this venue outside the building, if anywhere. Exported only
+# when set, so an empty option never reaches the venue as an address; the venue checks it is
+# an https address and refuses to start with one that is not.
+CLEARVENUE_PUBLIC_URL="$(bashio::config 'public_url')"
+if [ "${CLEARVENUE_PUBLIC_URL}" = "null" ] || bashio::var.is_empty "${CLEARVENUE_PUBLIC_URL}"; then
+    unset CLEARVENUE_PUBLIC_URL
+else
+    export CLEARVENUE_PUBLIC_URL
+    bashio::log.info "Reachable from outside the building at ${CLEARVENUE_PUBLIC_URL}, through port 8098."
+fi
+
 bashio::log.info "Starting ClearVenue."
 
 exec /opt/venv/bin/python -m clearvenue

@@ -45,6 +45,25 @@ never happens. The app prefers a local address and logs which one it chose and w
 know which network your screens are on and this is where you say so. It is also shown on the
 **Screens** page.
 
+## Reaching ClearVenue from outside the building
+
+ClearVenue can be published on the internet through a reverse proxy — a Cloudflare tunnel,
+Nginx Proxy Manager or similar — without publishing Home Assistant itself.
+
+1. **Point the proxy at port `8098`** on this machine, and give it an https address of its own,
+   such as `https://venue.example.com`.
+2. **Set `public_url`** in this app's Configuration tab to that address, and restart the app.
+3. **Turn on Microsoft sign-in.** Open ClearVenue from the sidebar, then **Settings → Change how
+   people sign in**. Fill in your Microsoft app registration, using the redirect address the
+   page shows, save, and press **Test & enable Microsoft**. You finish signing in on the public
+   address and become its first administrator; invite anybody else from the same page.
+
+From outside the building, only Microsoft accounts you have made administrators can sign in,
+and once signed in they manage ClearVenue as they would from the sidebar. Kitchen and other
+staff screens, and anything else ClearVenue trusts because it is on your own network, are not
+available there; your till's instant updates and your cameras still reach it. Inside the
+building nothing changes: the sidebar works as before.
+
 ## Reaching a screen
 
 Three ways, and they are not equivalent:
