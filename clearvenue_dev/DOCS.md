@@ -56,9 +56,10 @@ Nginx Proxy Manager or similar — without publishing Home Assistant itself.
    a proxy sends them with *"This address is for inside the building"* — which is how a wrong
    port shows itself.
 
-   With Nginx Proxy Manager: point your name's `A` record at your public address, then add a
-   proxy host for the name with scheme `http`, this machine's network address and port `8098`,
-   and request an SSL certificate for it.
+   With Nginx Proxy Manager: point your name's `A` record at your public address, have your
+   router forward port `443` (and `80`, if the certificate is requested over HTTP) to the
+   machine running the proxy, then add a proxy host for the name with scheme `http`, this
+   machine's network address and port `8098`, and request an SSL certificate for it.
 2. **Set `public_url`** in this app's Configuration tab to that address, and restart the app.
 3. **Turn on Microsoft sign-in.** Open ClearVenue from the sidebar, then **Settings → Change how
    people sign in**. Fill in your Microsoft app registration, using the redirect address the
