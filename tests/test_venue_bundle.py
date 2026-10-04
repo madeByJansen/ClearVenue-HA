@@ -52,12 +52,15 @@ parser.add_argument("out_dir", type=Path)
 parser.add_argument("--version")
 parser.add_argument("--revision")
 parser.add_argument("--screen-release", type=Path, default=None)
+parser.add_argument("--repository", default="")
 args = parser.parse_args()
 top = f"clearvenue-{args.version}"
+stated = {"product": "clearvenue", "version": args.version, "revision": args.revision}
+if args.repository:
+    stated["repository"] = args.repository
 files = {
     "VERSION": args.version + "\\n",
-    "RELEASE.json": json.dumps({"product": "clearvenue", "version": args.version,
-                                "revision": args.revision}),
+    "RELEASE.json": json.dumps(stated),
     "clearvenue/__main__.py": "from bundle\\n",
     "device/requirements.txt": "fastapi\\n",
 }
@@ -153,6 +156,31 @@ def test_the_image_is_built_from_the_bundle_and_the_signed_release_is_kept_for_p
         "key_id": "release-2026-08",
         "package": f"clearvenue-{VERSION}.tar.gz",
     }
+
+
+def test_the_release_says_where_its_updates_are_published_whatever_its_channel(packaging):
+    """A venue installed from the bundle looks there, so ClearVenue's own code names nobody."""
+    ran = _build(packaging, UPDATE_SIGNING_PRIVATE_KEY="PEM")
+
+    assert ran.returncode == 0, ran.stderr
+    stated = json.loads((packaging / "clearvenue" / "src" / "RELEASE.json").read_text())
+    assert stated["repository"] == "madebyjansen/clearvenue"
+
+
+def test_a_builder_from_before_the_option_is_not_told_it(packaging):
+    builder = packaging / ".upstream" / "clearsignage" / "scripts" / "build_venue_bundle.py"
+    builder.write_text(
+        builder.read_text()
+        .replace('parser.add_argument("--repository", default="")\n', "")
+        .replace("if args.repository:\n    stated[\"repository\"] = args.repository\n", "")
+    )
+    assert "repository" not in builder.read_text()
+
+    ran = _build(packaging, UPDATE_SIGNING_PRIVATE_KEY="PEM")
+
+    assert ran.returncode == 0, ran.stderr
+    stated = json.loads((packaging / "clearvenue" / "src" / "RELEASE.json").read_text())
+    assert "repository" not in stated
 
 
 def test_a_dry_run_without_the_key_builds_from_the_bundle_and_signs_nothing(packaging):

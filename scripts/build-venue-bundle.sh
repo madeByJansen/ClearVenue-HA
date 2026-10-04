@@ -69,8 +69,17 @@ screen_release=()
 if [ -d "${SRC}/screen-release" ]; then
     screen_release=(--screen-release "${SRC}/screen-release")
 fi
+# Where a venue installed from this bundle looks for its updates: the stable channel's package,
+# which every other channel's name is built from. Written into the release, so the venue's own
+# code names nobody. Only a builder that knows the option is told; an older commit builds as before.
+repository=()
+if grep -q -- '--repository' "${UPSTREAM}/scripts/build_venue_bundle.py"; then
+    published="$("${PYTHON}" "${HERE}/scripts/channels.py" --channel stable --field image)"
+    repository=(--repository "${published#ghcr.io/}")
+fi
 BUNDLE="$("${PYTHON}" "${UPSTREAM}/scripts/build_venue_bundle.py" "${WORK}/dist" \
-    --version "${VERSION}" --revision "${REF}" ${screen_release[@]+"${screen_release[@]}"})"
+    --version "${VERSION}" --revision "${REF}" ${screen_release[@]+"${screen_release[@]}"} \
+    ${repository[@]+"${repository[@]}"})"
 NAME="clearvenue-${VERSION}.tar.gz"
 [ "$(basename "${BUNDLE}")" = "${NAME}" ] || { echo "The builder made ${BUNDLE}, not ${NAME}" >&2; exit 1; }
 
