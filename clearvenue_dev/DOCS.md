@@ -68,7 +68,7 @@ Nginx Proxy Manager or similar — without publishing Home Assistant itself.
 
 From outside the building, only Microsoft accounts you have made administrators can sign in,
 and once signed in they manage ClearVenue and open its screens as they would from the sidebar,
-without a screen's PIN. Kitchen and other staff screens, and anything else ClearVenue trusts
+without a screen's PIN — including the screens on your walls that joined ClearVenue. Kitchen and other staff screens, and anything else ClearVenue trusts
 because it is on your own network, are not available there and stay on your own network; your
 till's instant updates and your cameras still reach it. Inside the building nothing changes:
 the sidebar works as before.
@@ -82,6 +82,10 @@ Three ways, and they are not equivalent:
   It also works from outside your home through Nabu Casa, with no port forwarding. Until you
   set a screen PIN in Settings, each new screen gets its own, shown on its card — that is the
   PIN to type on the screen's own address.
+- **A screen on a wall that joined ClearVenue** opens from ClearVenue's Screens page,
+  under *Screens elsewhere in this venue* → **Open**. ClearVenue signs you in on that screen
+  for you, from the sidebar or from outside the building. Each screen can refuse this in its
+  own settings (*Let paired screens sign in here*), and its own address still asks for its PIN.
 - **`http://<host>:810N`** — how *other screens* find and sync with this one, and the
   address to put a screen's `/display` on a dashboard (see below). Not somewhere to go
   looking for settings.
