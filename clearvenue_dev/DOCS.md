@@ -51,7 +51,14 @@ ClearVenue can be published on the internet through a reverse proxy — a Cloudf
 Nginx Proxy Manager or similar — without publishing Home Assistant itself.
 
 1. **Point the proxy at port `8098`** on this machine, and give it an https address of its own,
-   such as `https://venue.example.com`.
+   such as `https://venue.example.com`. Only port `8098`: this app's other ports, Home
+   Assistant's `8123` and each screen's `810N` are for inside the building, and answer anything
+   a proxy sends them with *"This address is for inside the building"* — which is how a wrong
+   port shows itself.
+
+   With Nginx Proxy Manager: point your name's `A` record at your public address, then add a
+   proxy host for the name with scheme `http`, this machine's network address and port `8098`,
+   and request an SSL certificate for it.
 2. **Set `public_url`** in this app's Configuration tab to that address, and restart the app.
 3. **Turn on Microsoft sign-in.** Open ClearVenue from the sidebar, then **Settings → Change how
    people sign in**. Fill in your Microsoft app registration, using the redirect address the
@@ -59,18 +66,21 @@ Nginx Proxy Manager or similar — without publishing Home Assistant itself.
    address and become its first administrator; invite anybody else from the same page.
 
 From outside the building, only Microsoft accounts you have made administrators can sign in,
-and once signed in they manage ClearVenue as they would from the sidebar. Kitchen and other
-staff screens, and anything else ClearVenue trusts because it is on your own network, are not
-available there; your till's instant updates and your cameras still reach it. Inside the
-building nothing changes: the sidebar works as before.
+and once signed in they manage ClearVenue and open its screens as they would from the sidebar,
+without a screen's PIN. Kitchen and other staff screens, and anything else ClearVenue trusts
+because it is on your own network, are not available there and stay on your own network; your
+till's instant updates and your cameras still reach it. Inside the building nothing changes:
+the sidebar works as before.
 
 ## Reaching a screen
 
 Three ways, and they are not equivalent:
 
 - **From the Home Assistant sidebar.** Home Assistant has already signed you in, so this
-  is the path that can change what is on a screen. It also works from outside your home
-  through Nabu Casa, with no port forwarding.
+  is the path that can change what is on a screen, and it never asks for the screen's PIN.
+  It also works from outside your home through Nabu Casa, with no port forwarding. Until you
+  set a screen PIN in Settings, each new screen gets its own, shown on its card — that is the
+  PIN to type on the screen's own address.
 - **`http://<host>:810N`** — how *other screens* find and sync with this one, and the
   address to put a screen's `/display` on a dashboard (see below). Not somewhere to go
   looking for settings.

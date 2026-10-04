@@ -854,3 +854,4 @@ def test_the_operator_is_told_how_to_reach_the_venue_from_outside():
     docs = (APP / "DOCS.md").read_text()
     assert "Reaching ClearVenue from outside the building" in docs
     assert "port `8098`" in docs and "`public_url`" in docs
+    assert "Nginx Proxy Manager" in docs and "Only port `8098`" in docs
