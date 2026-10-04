@@ -91,32 +91,17 @@ def all_versions(owner: str, package: str, token: str, *, owner_kind: str, allow
                 batch = json.load(response)
                 url = _next_url(response)
         except urllib.error.HTTPError as error:
-            # A new channel has no package yet. A 404 alone may also hide an auth
-            # failure, so require a successful owner package listing before bootstrapping.
+            # A new channel has no package yet. An invalid token is rejected with 401, not
+            # 404, so a 404 on the first page means nothing is published. The owner package
+            # listing cannot confirm this: GitHub answers it with 400 "Invalid argument"
+            # for the workflow token.
             if error.code != 404 or not allow_missing or versions:
-                raise
-            names = package_names(owner, token, owner_kind=owner_kind)
-            if package in names:
                 raise
             return []
         versions.extend(batch)
         if url is None:
             break
     return versions
-
-
-def package_names(owner: str, token: str, *, owner_kind: str) -> set[str]:
-    names = set()
-    route = OWNER_ROUTES[owner_kind]
-    owner = urllib.parse.quote(owner, safe="")
-    url: str | None = f"https://api.github.com/{route}/{owner}/packages?package_type=container&per_page={PAGE_SIZE}"
-    while True:
-        with request(url, token) as response:
-            batch = json.load(response)
-            url = _next_url(response)
-        names.update(item["name"] for item in batch)
-        if url is None:
-            return names
 
 
 def tags_of(version: dict[str, object]) -> list[str]:

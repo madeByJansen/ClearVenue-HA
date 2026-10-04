@@ -23,6 +23,16 @@ OWNER = "madeByJansen"
 OWNER_KIND = "organization"
 
 
+def package_exists(package, token):
+    try:
+        read_json(ghcr_api.package_url(OWNER, package, OWNER_KIND), token)
+    except urllib.error.HTTPError as error:
+        if error.code == 404:
+            return False
+        raise
+    return True
+
+
 def read_json(url, token):
     with ghcr_api.request(url, token) as response:
         return json.load(response)
@@ -88,7 +98,7 @@ def main():
     for tag in collection(api + "/tags", token):
         if LEGACY_TAG.fullmatch(tag["name"]):
             actions.append((f"Git tag {tag['name']}", api + "/git/refs/tags/" + urllib.parse.quote(tag["name"], safe="")))
-    if LEGACY_PACKAGE in ghcr_api.package_names(OWNER, token, owner_kind=OWNER_KIND):
+    if package_exists(LEGACY_PACKAGE, token):
         actions.append((f"Entire GHCR package {LEGACY_PACKAGE} (including untagged layers)",
                         ghcr_api.package_url(OWNER, LEGACY_PACKAGE, OWNER_KIND)))
     for label, url in actions:
