@@ -64,11 +64,13 @@ Nginx Proxy Manager or similar — without publishing Home Assistant itself.
 3. **Turn on Microsoft sign-in.** Open ClearVenue from the sidebar, then **Settings → Change how
    people sign in**. Fill in your Microsoft app registration's directory (tenant) ID and
    application (client) ID, using the redirect address the page shows, and leave **Credential**
-   on **Certificate** — Microsoft recommends a certificate over a client secret. Save: ClearVenue
-   makes its own certificate, and its private key never leaves ClearVenue. Press **Download
-   certificate** and upload that file to the app registration's **Certificates & secrets →
-   Certificates**, then press **Test & enable Microsoft**. You finish signing in on the public
-   address and become its first administrator; invite anybody else from the same page.
+   on **Certificate** — Microsoft recommends a certificate over a client secret — then press
+   **Save**. Choose how long the certificate is **Valid for** (1 to 10 years; Microsoft
+   recommends a year or less) and press **Make a certificate**: ClearVenue makes its own, and its
+   private key never leaves ClearVenue. Press **Download certificate** and upload that file to
+   the app registration's **Certificates & secrets → Certificates**, then press **Test & enable
+   Microsoft**. You finish signing in on the public address and become its first administrator;
+   invite anybody else from the same page.
 
    If your organisation issues its own certificates, choose **Use your organisation's
    certificate** and upload a `.pfx` or `.p12` with its password, or paste the private key and
