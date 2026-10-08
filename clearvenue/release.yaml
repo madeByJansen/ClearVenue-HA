@@ -1,6 +1,0 @@
----
-# Optional approval pin for publishing an exact upstream commit override.
-# Normal channel builds follow their mapped upstream branch without editing this file.
-# To publish an override, put its full 40-character SHA here first.
-# The version is recorded only in config.yaml; it is never repeated here.
-clearsignage_revision: ""

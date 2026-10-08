@@ -24,7 +24,6 @@ import pytest
 import yaml
 
 REPO = Path(__file__).resolve().parents[1]
-PIPELINE = (REPO / "jenkinsfile-ha").read_text(encoding="utf-8")
 VERSION = "20261003.04"
 
 
@@ -477,76 +476,5 @@ def test_a_remote_that_cannot_be_read_is_said_and_does_not_fail_the_release(tmp_
     assert "Could not prune the release tags" in capsys.readouterr().err
 
 
-# ── Both pipelines ────────────────────────────────────────────────────────────────
-
-
-def test_jenkins_builds_the_bundle_before_the_image_and_publishes_it_before_recording():
-    order = [
-        "stage('Build the screen release')",
-        "stage('Build the venue bundle')",
-        "stage('Build and publish')",
-        "stage('Publish the venue bundle')",
-        "stage('Record the published version')",
-        "stage('Prune old releases')",
-    ]
-    assert [PIPELINE.index(stage) for stage in order] == sorted(
-        PIPELINE.index(stage) for stage in order
-    )
-    building = PIPELINE[PIPELINE.index(order[1]) : PIPELINE.index(order[2])]
-    assert 'BUNDLE_VERSION="${APP_VERSION}"' in building
-    assert "string(credentialsId: 'update-signing-private-key'" in building
-    assert '"BUNDLE_REQUIRED=${params.PUSH}"' in building
-    publishing = PIPELINE[PIPELINE.index(order[3]) : PIPELINE.index(order[4])]
-    assert "expression { params.PUSH }" in publishing
-    assert 'GHCR_TOKEN="${GHCR_PSW}"' in publishing
-    pruning = PIPELINE[PIPELINE.index(order[5]) :]
-    assert "GIT_ASKPASS" in pruning, "deleting a tag is a push, authenticated as one"
-    assert "rm -rf clearvenue/src clearvenue_beta/src clearvenue_dev/src .upstream venue-release" in PIPELINE
-
-
-def test_actions_runs_the_same_steps_in_the_same_order():
-    workflow = yaml.safe_load(
-        (REPO / ".github" / "workflows" / "homeassistant.yml").read_text(encoding="utf-8")
-    )
-    steps = workflow["jobs"]["build"]["steps"]
-    names = [step["name"] for step in steps]
-    order = [
-        "Build the screen release",
-        "Build the venue bundle",
-        "Build both architectures",
-        "Publish the venue bundle",
-        "Record the published version",
-        "Prune old releases",
-    ]
-    assert [names.index(name) for name in order] == sorted(names.index(name) for name in order)
-    building = steps[names.index("Build the venue bundle")]
-    assert building["env"]["BUNDLE_REQUIRED"] == "${{ inputs.push }}"
-    assert building["env"]["BUNDLE_VERSION"] == "${{ steps.version.outputs.version }}"
-    publishing = steps[names.index("Publish the venue bundle")]
-    assert publishing["if"] == "inputs.push"
-    assert publishing["env"]["GHCR_TOKEN"] == "${{ github.token }}"
-    assert ".upstream venue-release" in steps[names.index("Remove private source")]["run"]
-
-
-def test_actions_can_publish_a_whole_release_without_jenkins():
-    """The workflow is the way to publish while Jenkins is down, so it needs every right
-    the Jenkins credentials give: push and delete packages, push the version commit, and
-    delete the tags of pruned releases — which it does with the checkout's own token."""
-    workflow = yaml.safe_load(
-        (REPO / ".github" / "workflows" / "homeassistant.yml").read_text(encoding="utf-8")
-    )
-    assert workflow["permissions"] == {"contents": "write", "packages": "write"}
-    assert "workflow_dispatch" in workflow[True], "it is started by a person, as Jenkins is"
-    steps = workflow["jobs"]["build"]["steps"]
-    checkout = next(step for step in steps if step.get("uses", "").startswith("actions/checkout"))
-    assert checkout.get("with", {}).get("persist-credentials") is True
-    names = [step["name"] for step in steps]
-    for jenkins_stage in (
-        "Build the screen release",
-        "Build the venue bundle",
-        "Publish the venue bundle",
-        "Record the published version",
-        "Prune old releases",
-    ):
-        assert f"stage('{jenkins_stage}')" in PIPELINE
-        assert jenkins_stage in names, f"Jenkins runs {jenkins_stage!r} and Actions does not"
+# The order the bundle is built, published and recorded in is release-addon.sh's, and is
+# driven for real in test_release_addon.py.

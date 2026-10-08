@@ -1,0 +1,25 @@
+name: Packaging tests
+
+# The add-on is built and published by ClearSignage's one release workflow, which
+# runs scripts/validate-packaging.sh before it builds anything. This runs the same checks on
+# every change here, so a pull request learns it broke the packaging before a release does.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Install the test dependencies
+        run: python -m pip install --upgrade pip pytest pyyaml
+      - name: Validate packaging
+        run: scripts/validate-packaging.sh
