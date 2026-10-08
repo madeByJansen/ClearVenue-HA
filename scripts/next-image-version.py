@@ -1,6 +1,11 @@
 #!/usr/bin/env python3
 """Choose the app version for this build, and write it into the manifest.
 
+**Stable and beta take ClearSignage's release number** (``--release``): one version
+names one commit everywhere it ships, so the add-on says the number of the ClearSignage
+release it carries, and a rebuild of the same commit adds a third part. What follows is how
+the development channel, which builds unreleased commits, still chooses its own.
+
 `YYYYMMDD.NN` from the build's UTC date, the same scheme ClearSignage releases use — and
 chosen the same way, from the artefacts that already exist rather than from a number
 somebody remembered to edit. There the store is R2; here it is the GHCR package, whose
@@ -91,6 +96,40 @@ def next_version(tags: Iterable[str], requested_date: dt.date) -> str:
     return f"{date_text}.{greatest + 1:02d}"
 
 
+#: A ClearSignage release number, which stable and beta take as their own.
+RELEASE = re.compile(r"^\d{8}\.\d{2}$")
+
+
+def _released(tag: str) -> str:
+    """Return the version a published tag stands for, its architecture or bundle suffix off."""
+    for suffix in ARCH_SUFFIXES:
+        if tag.endswith(suffix):
+            return tag[: -len(suffix)]
+    return tag
+
+
+def version_for_release(tags: Iterable[str], release: str) -> str:
+    """Return the add-on version for ClearSignage ``release``.
+
+    The release's own number the first time it is published in this channel, so the add-on,
+    the screen release inside it and the venue bundle all say the same thing. Built again
+    from the same commit — a change to this repository's packaging only — it is the release
+    with a third part, ``YYYYMMDD.NN.n``: Home Assistant offers an update only for a new
+    version, and the code inside has not changed, so the number a screen sees has not either.
+    """
+    if not RELEASE.fullmatch(release):
+        raise ValueError(f"{release!r} is not a ClearSignage release number (YYYYMMDD.NN)")
+    published = {_released(str(tag)) for tag in tags}
+    if release not in published:
+        return release
+    rebuilds = [
+        int(version[len(release) + 1 :])
+        for version in published
+        if version.startswith(f"{release}.") and version[len(release) + 1 :].isdigit()
+    ]
+    return f"{release}.{max(rebuilds, default=0) + 1}"
+
+
 def stamp_version(manifest: str, version: str) -> str:
     """Return the manifest with its version line replaced, comments and all else intact."""
     stamped, replacements = VERSION_LINE.subn(f'version: "{version}"', manifest, count=1)
@@ -134,6 +173,14 @@ def main(argv: list[str]) -> int:
         help="stamp this exact version instead of choosing one; the registry is not read",
     )
     parser.add_argument("--date", help="UTC date to choose for, as YYYYMMDD (default: today)")
+    parser.add_argument(
+        "--release",
+        default="",
+        help=(
+            "the ClearSignage release this build is: its number, or a third part on "
+            "a rebuild. Stable and beta pass it; dev keeps its own counter"
+        ),
+    )
     args = parser.parse_args(argv)
 
     if args.stdin and not args.chosen:
@@ -155,7 +202,11 @@ def main(argv: list[str]) -> int:
             chosen_date = (
                 dt.datetime.strptime(args.date, "%Y%m%d").date() if args.date else utc_date()
             )
-            version = next_version(published_tags(args.owner, settings["package"], token), chosen_date)
+            published = published_tags(args.owner, settings["package"], token)
+            if args.release:
+                version = version_for_release(published, args.release)
+            else:
+                version = next_version(published, chosen_date)
 
         if args.stdin:
             # stdout is the manifest here, so the version is not printed: the caller

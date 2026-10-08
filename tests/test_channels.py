@@ -60,25 +60,8 @@ def test_only_three_apps_and_shared_packaging_is_in_sync():
     subprocess.run([sys.executable, str(ROOT / 'scripts/sync-channel-packaging.py'), '--check'], check=True)
     for channel in CHANNELS:
         folder = ROOT / channel_settings(channel)['addon_dir']
-        pin = yaml.safe_load((folder / 'release.yaml').read_text())['clearsignage_revision']
-        assert pin == '' or (len(pin) == 40 and all(c in '0123456789abcdef' for c in pin))
         for name in ('run', 'finish'):
             assert os.access(folder / 'rootfs/etc/services.d/clearvenue' / name, os.X_OK)
-
-
-@pytest.mark.parametrize('channel', CHANNELS)
-def test_gate_allows_mapped_branch_and_requires_exact_override_pin(channel):
-    gate = load('check-publish-allowed')
-    settings = channel_settings(channel)
-    args = dict(push=True, channel=channel, branch=settings['branch'], override='',
-                built_revision='a' * 40, pinned_revision='')
-    assert gate.publish_refusal(**args) is None
-    assert gate.publish_refusal(**dict(args, branch='wrong'))
-    assert gate.publish_refusal(**dict(args, built_revision=''))
-    assert gate.publish_refusal(**dict(args, override='a' * 40))
-    assert gate.publish_refusal(**dict(args, override='a' * 40, pinned_revision='a' * 40)) is None
-    assert gate.publish_refusal(**dict(args, override='b' * 40, pinned_revision='a' * 40))
-    assert gate.publish_refusal(**dict(args, push=False, override='a' * 40)) is None
 
 
 def test_unknown_channel_fails_before_source_or_registry_access():
@@ -255,65 +238,24 @@ def test_cleanup_waits_for_replacement_rollout():
         assert not cleanup.LEGACY_TAG.fullmatch(tag)
 
 
-def test_ci_shell_fragments_parse_and_workflow_uses_channels():
-    import re
-    pipeline = (ROOT / 'jenkinsfile-ha').read_text()
-    assert "name: 'CHANNEL'" in pipeline
-    assert "choices: ['stable', 'beta', 'dev']" in pipeline
-    assert "name: 'CLEARSIGNAGE_REF'" not in pipeline
-    assert 'RECORD_BRANCH=main' in pipeline
-    assert '--channel "${CHANNEL}"' in pipeline
-    fragments = re.findall("'''(.*?)'''", pipeline, re.S)
-    workflow = yaml.safe_load((ROOT / '.github/workflows/homeassistant.yml').read_text())
-    inputs = workflow[True]['workflow_dispatch']['inputs']  # PyYAML's YAML 1.1 boolean key
-    assert inputs['channel']['options'] == ['stable', 'beta', 'dev']
-    assert 'clearsignage_ref' not in inputs
-    steps = workflow['jobs']['build']['steps']
-    fragments += [step['run'] for step in steps if 'run' in step]
-    for fragment in fragments:
-        parsed = subprocess.run(['bash', '-n'], input=fragment, text=True, capture_output=True)
+def test_the_add_on_is_built_only_by_the_release_workflow_s_entry():
+    """ClearSignage's one release workflow builds the add-on; nothing here does too."""
+    assert not (ROOT / 'jenkinsfile-ha').exists()
+    assert sorted(path.name for path in (ROOT / '.github/workflows').iterdir()) == ['tests.yml']
+    for script in ('release-addon.sh', 'validate-packaging.sh'):
+        parsed = subprocess.run(['bash', '-n', str(ROOT / 'scripts' / script)], capture_output=True, text=True)
         assert parsed.returncode == 0, parsed.stderr
-    assert next(step for step in steps if step['name'] == 'Require packaging main for publishing')['if'] == 'inputs.push'
+        assert os.access(ROOT / 'scripts' / script, os.X_OK), f'{script} is not executable'
 
 
-@pytest.mark.parametrize('channel', CHANNELS)
-@pytest.mark.parametrize('push', ['true', 'false'])
-def test_jenkins_build_commands_publish_only_the_selected_image(tmp_path, channel, push):
-    import re
-    settings = channel_settings(channel)
-    pipeline = (ROOT / 'jenkinsfile-ha').read_text()
-    build_stage = pipeline.split("stage('Build and publish')", 1)[1].split("stage('Record the published version')", 1)[0]
-    fragment = re.search("'''(.*?)'''", build_stage, re.S).group(1)
-    # Execute the actual shell step with a fake Docker executable, never a daemon.
-    binary_dir = tmp_path / 'bin'
-    binary_dir.mkdir()
-    docker = binary_dir / 'docker'
-    docker.write_text('#!/bin/bash\nprintf "%s\\n" "$*" >> "$DOCKER_CALLS"\n')
-    docker.chmod(0o755)
-    venv = tmp_path / '.venv/bin'
-    venv.mkdir(parents=True)
-    (venv / 'python').symlink_to(sys.executable)
-    app = tmp_path / settings['addon_dir']
-    app.mkdir()
-    (app / 'build.yaml').write_bytes((ROOT / settings['addon_dir'] / 'build.yaml').read_bytes())
-    log = tmp_path / 'calls'
-    env = {**os.environ, 'PATH': str(binary_dir) + os.pathsep + os.environ['PATH'],
-           'ADDON_DIR': settings['addon_dir'], 'IMAGE': settings['image'], 'PUSH': push,
-           'APP_VERSION': '20260929.01', 'RESOLVED_REF': 'a' * 40, 'REGISTRY': 'ghcr.io',
-           'GHCR_USR': 'fixture', 'GHCR_PSW': 'fixture', 'DOCKER_CALLS': str(log)}
-    result = subprocess.run(['bash'], input=fragment, cwd=tmp_path, env=env, text=True, capture_output=True)
-    assert result.returncode == 0, result.stderr
-    calls = log.read_text().splitlines()
-    builds = [line for line in calls if line.startswith('buildx build ')]
-    assert len(builds) == 2
-    for line, architecture in zip(builds, ['aarch64', 'amd64']):
-        assert f"--tag {settings['image']}:20260929.01-{architecture}" in line
-        assert line.endswith(' ' + settings['addon_dir'])
-        assert ('--push' in line) == (push == 'true')
-    manifests = [line for line in calls if 'imagetools create' in line]
-    assert len(manifests) == (1 if push == 'true' else 0)
-    if manifests:
-        assert f"--tag {settings['image']}:latest" in manifests[0]
+def test_every_change_here_runs_the_checks_a_release_runs_first():
+    workflow = yaml.safe_load((ROOT / '.github/workflows/tests.yml').read_text())
+    triggers = workflow[True]  # PyYAML's YAML 1.1 boolean key
+    assert 'pull_request' in triggers and triggers['push']['branches'] == ['main']
+    steps = workflow['jobs']['tests']['steps']
+    assert any(step.get('run') == 'scripts/validate-packaging.sh' for step in steps)
+    entry = (ROOT / 'scripts/release-addon.sh').read_text()
+    assert entry.index('scripts/validate-packaging.sh"') < entry.index('scripts/fetch-source.sh"'), 'validated first'
 
 
 @pytest.mark.parametrize('apply', [False, True])

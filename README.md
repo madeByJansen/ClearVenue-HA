@@ -34,6 +34,15 @@ dashboard, and what differs from a screen on a Raspberry Pi.
 Home Assistant offers each new release as an update to the app. Screens that joined the
 venue update themselves from it afterwards, at a quiet moment.
 
+## Releasing
+
+This repository holds the packaging; ClearSignage's one release workflow builds and publishes
+it. A release run that ticks the Home Assistant destination calls `scripts/release-addon.sh`
+with the source it built and the screen release it signed, so the add-on, the screen release
+inside it and the venue bundle carry that release's version. A dry run builds both
+architectures and publishes nothing. `scripts/validate-packaging.sh` is what every pull
+request here runs (`.github/workflows/tests.yml`), and what a release runs first.
+
 ## Support
 
 Questions and problems go to the person or company that set ClearVenue up for you.

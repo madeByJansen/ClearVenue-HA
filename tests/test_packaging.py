@@ -25,19 +25,18 @@ REPO = Path(__file__).resolve().parents[1]
 APP = REPO / "clearvenue"
 CONFIG = yaml.safe_load((APP / "config.yaml").read_text())
 BUILD = yaml.safe_load((APP / "build.yaml").read_text())
-RELEASE = yaml.safe_load((APP / "release.yaml").read_text())
-PIPELINE = (REPO / "jenkinsfile-ha").read_text()
+#: The one place the add-on is built and published, for ClearSignage's release workflow.
+ENTRY = (REPO / "scripts" / "release-addon.sh").read_text()
 RECORDER = (REPO / "scripts" / "record-published-version.sh").read_text()
 
 
 @pytest.fixture(params=["stable", "beta", "dev"], autouse=True)
 def packaging_channel(request):
-    global APP, CONFIG, BUILD, RELEASE
+    global APP, CONFIG, BUILD
     folder = "clearvenue" if request.param == "stable" else "clearvenue_" + request.param
     APP = REPO / folder
     CONFIG = yaml.safe_load((APP / "config.yaml").read_text())
     BUILD = yaml.safe_load((APP / "build.yaml").read_text())
-    RELEASE = yaml.safe_load((APP / "release.yaml").read_text())
 
 
 def _load_script(filename: str, module_name: str):
@@ -52,10 +51,6 @@ def _load_script(filename: str, module_name: str):
 
 def _load_pruner():
     return _load_script("prune-ghcr-releases.py", "prune_ghcr_releases")
-
-
-def _load_publish_gate():
-    return _load_script("check-publish-allowed.py", "check_publish_allowed")
 
 
 def _load_version_chooser():
@@ -175,34 +170,22 @@ def test_the_manifest_version_is_a_tag_the_registry_and_the_pruner_both_accept()
     assert pruner.version_key(CONFIG["version"]) >= pruner.version_key("20260831.01")
 
 
-def test_the_pipeline_chooses_the_version_and_records_what_it_published():
+def test_the_entry_chooses_the_version_and_records_what_it_published():
     """Both halves, because either one alone is broken.
 
     Choosing without recording publishes an image no install is offered — Home Assistant
     reads the version from config.yaml in this repository, so an uncommitted version
     reaches nobody. Recording without publishing first advertises a tag that is not in the
-    registry yet, and an operator upgrading in that window gets a pull failure.
+    registry yet, and an operator upgrading in that window gets a pull failure. The order is
+    driven for real in test_release_addon.py; these are the lines that make it.
     """
-    assert "./scripts/next-image-version.py" in PIPELINE
-    assert '--channel "${CHANNEL}"' in PIPELINE
-    assert 'GHCR_TOKEN="${GHCR_PSW}"' in PIPELINE
-
-    record = PIPELINE.index("stage('Record the published version')")
-    publish = PIPELINE.index("stage('Build and publish')")
-    assert publish < record, "the version is recorded before the image it names exists"
-
-    # And a build that is going to be refused should touch neither the manifest nor the
-    # registry: the check comes first.
-    assert PIPELINE.index("check-publish-allowed.py") < PIPELINE.index(
-        "next-image-version.py"
-    ), "the version is chosen before the build is known to be allowed to publish"
-
-    recording = PIPELINE[record:]
-    assert "expression { params.PUSH }" in recording, "a dry run must not write to main"
-    assert './scripts/record-published-version.sh' in recording
-    assert 'RECORD_VERSION="${APP_VERSION}"' in recording, (
-        "the recorded version must be the one that was built"
+    assert '"${HERE}/scripts/next-image-version.py"' in ENTRY
+    assert ENTRY.index("next-image-version.py") < ENTRY.index("buildx build")
+    assert ENTRY.index("imagetools create") < ENTRY.index("record-published-version.sh"), (
+        "the version is recorded before the image it names exists"
     )
+    assert 'RECORD_VERSION="${APP_VERSION}"' in ENTRY, "the recorded version must be the one built"
+    assert "RECORD_BRANCH=main" in ENTRY
     # What that recorder does with it — plumbing, a retry on a moved branch, and a
     # failure that says the image is published — is driven in test_record_version.py
     # against real repositories, which is the point of it being a script.
@@ -210,53 +193,16 @@ def test_the_pipeline_chooses_the_version_and_records_what_it_published():
         "a failure there leaves a published image nobody is offered; it has to say so"
     )
     assert "git checkout" not in RECORDER, (
-        "the recorder must not move the workspace: later stages run this build's scripts"
+        "the recorder must not move the workspace: later steps run this build's scripts"
     )
 
 
-def test_two_builds_cannot_choose_the_same_version():
-    """The version is chosen from the registry and only becomes taken when the image is
-    pushed, so the gap between the two is a race.
-
-    Two runs started together read the same tags, choose the same YYYYMMDD.NN, and the
-    second overwrites the first's image — a Docker tag is mutable, so nothing refuses it,
-    and `main` ends up naming one version that was two different builds. Serialising the
-    job is the whole fix.
-    """
-    assert "disableConcurrentBuilds()" in PIPELINE
-
-
-def test_a_shell_step_survives_an_env_var_jenkins_decided_not_to_set():
-    """`withEnv` *removes* a variable whose value is empty; it does not set it to "".
-
-    So `CLEARSIGNAGE_REF_OVERRIDE ?: ''` — the ordinary case of no exact commit being
-    asked for — reaches the step as nothing at all, and `set -u` kills it with
-    "PUBLISH_OVERRIDE: unbound variable" before the script it feeds can apply its own
-    default. That is how the first build after this shipped failed.
-
-    It is asserted over every such variable rather than the one that broke, because the
-    trap is in Jenkins rather than in the line that hit it, and the next one added will
-    read exactly as safe as this one did.
-    """
-    assignments = re.findall(r'"(\w+)=(\$\{[^"]*\})"', PIPELINE)
-    emptyable = [name for name, value in assignments if "?: ''" in value]
-    assert emptyable, "no withEnv value can be empty; this test is watching nothing"
-
-    for name in emptyable:
-        assert f'"${{{name}}}"' not in PIPELINE, (
-            f"{name} can be empty, so Jenkins may not set it at all; "
-            f"read it as ${{{name}:-}} or `set -u` fails the step"
-        )
-        assert f"${{{name}:-" in PIPELINE, f"{name} is put in the environment but never read"
-
-
 def test_the_github_token_never_reaches_a_url_or_an_argument():
-    """The fetch stage went to the trouble of a temporary GIT_ASKPASS for this reason, and
-    the push added later is the obvious place for a PAT to end up in a remote URL — where
-    it lands in `git config`, in `ps` output, and in any command echo."""
-    assert "${GIT_PASSWORD}@github.com" not in PIPELINE
-    assert "${GITHUB_TOKEN}@github.com" not in PIPELINE
-    assert PIPELINE.count("GIT_ASKPASS") >= 2, "the push step authenticates some other way"
+    """The caller answers this repository's remote through GIT_ASKPASS for this reason: a PAT
+    in a remote URL lands in `git config`, in `ps` output, and in any command echo."""
+    assert "@github.com" not in ENTRY, "a credential in a remote URL lands in git config and ps"
+    assert "GIT_ASKPASS" in ENTRY, "recording and pruning authenticate some other way"
+    assert '--password-stdin' in ENTRY, "the registry token is never an argument"
 
 
 def test_the_app_version_is_stated_in_exactly_one_place():
@@ -288,7 +234,7 @@ def test_the_app_version_is_stated_in_exactly_one_place():
 
 
 def test_pipeline_labels_the_image_with_the_resolved_revision():
-    assert '--label "org.opencontainers.image.revision=${RESOLVED_REF}"' in PIPELINE
+    assert '--label "org.opencontainers.image.revision=${CLEARSIGNAGE_REF}"' in ENTRY
 
 
 def test_the_manifest_has_what_the_supervisor_requires():
@@ -614,21 +560,20 @@ def test_the_image_is_a_prebuilt_multi_arch_manifest():
     assert "{arch}" not in CONFIG["image"]
 
 
-def test_the_pipeline_builds_both_architectures_into_one_manifest():
+def test_the_entry_builds_both_architectures_into_one_manifest():
     """A manifest naming one architecture installs on half the fleet and nobody notices
     until the other half tries."""
-    pipeline = (REPO / "jenkinsfile-ha").read_text()
-    assert "linux/arm64" in pipeline
-    assert "linux/amd64" in pipeline
-    assert "imagetools create" in pipeline
-    # The image the pipeline pushes must be the one the manifest tells HA to pull.
-    assert "scripts/channels.py --field image" in pipeline
+    assert "linux/arm64" in ENTRY
+    assert "linux/amd64" in ENTRY
+    assert "imagetools create" in ENTRY
+    # The image pushed must be the one the manifest tells HA to pull: channels.py's.
+    assert 'source "${HERE}/scripts/channel-env.sh"' in ENTRY
+    assert '"${IMAGE}:${APP_VERSION}"' in ENTRY
 
 
-def test_the_pipeline_keeps_only_the_current_and_previous_image_releases():
-    assert "stage('Prune old releases')" in PIPELINE
-    assert "expression { params.PUSH }" in PIPELINE
-    assert '"${APP_VERSION}"' in PIPELINE
+def test_the_entry_keeps_only_the_current_and_previous_image_releases():
+    assert '"${HERE}/scripts/prune-ghcr-releases.py"' in ENTRY
+    assert '--current "${APP_VERSION}" --apply' in ENTRY
 
     pruner = _load_pruner()
     versions = []
@@ -648,11 +593,11 @@ def test_the_pipeline_keeps_only_the_current_and_previous_image_releases():
     assert pruner.versions_to_delete(versions, "0.1.89") == [1, 2, 3]
 
 
-def test_the_pipeline_does_not_leave_private_source_on_the_agent():
-    """The fetched tree is a full ClearSignage checkout."""
-    pipeline = (REPO / "jenkinsfile-ha").read_text()
-    assert "rm -rf clearvenue/src clearvenue_beta/src clearvenue_dev/src" in pipeline
-    assert "docker logout" in pipeline
+def test_the_entry_does_not_leave_private_source_on_the_agent():
+    """The fetched tree is a full ClearSignage checkout; driven in test_release_addon.py."""
+    assert 'rm -rf "${HERE}/${ADDON_DIR}/src" "${HERE}/.upstream" "${HERE}/venue-release"' in ENTRY
+    assert "trap cleanup EXIT" in ENTRY
+    assert '"${DOCKER}" logout' in ENTRY
 
 
 def test_the_operator_is_told_to_add_registry_credentials_first():
@@ -718,126 +663,31 @@ def test_the_image_carries_the_service_the_venue_deploys_to_its_hosting():
 
 # ── The screen release a venue hands to the screens that joined it (ClearSignage DP210) ──
 
-SCREEN_RELEASE = (REPO / "scripts" / "build-screen-release.sh").read_text(encoding="utf-8")
-
-
-def test_the_screen_release_is_built_between_choosing_the_version_and_building_the_image():
-    """Versioned as the add-on is, from the commit the image runs, inside the image.
-
-    After the version is chosen, because the release carries it: a screen takes a release
-    only if it is newer, so every new add-on has to be a newer release to a screen. Before
-    the image is built, because the image's COPY is what carries it.
-    """
-    stage = PIPELINE.index("stage('Build the screen release')")
-    assert PIPELINE.index("next-image-version.py") < stage
-    assert stage < PIPELINE.index("stage('Build and publish')")
-    building = PIPELINE[stage : PIPELINE.index("stage('Build and publish')")]
-    assert 'SCREEN_RELEASE_VERSION="${APP_VERSION}"' in building
-    assert 'CLEARSIGNAGE_REF="${RESOLVED_REF}"' in building
-    assert "./scripts/build-screen-release.sh" in building
-
-
-def test_the_screen_release_is_signed_with_the_release_jobs_own_key():
-    """One key, so a screen trusts a venue's release exactly as it trusts any other."""
-    stage = PIPELINE.index("stage('Build the screen release')")
-    building = PIPELINE[stage : PIPELINE.index("stage('Build and publish')")]
-    assert "string(credentialsId: 'update-signing-private-key'" in building
-    # Only a missing credential is caught, and a published image may not go without it.
-    assert "CredentialNotFoundException" in building
-    assert "if (params.PUSH)" in building
-    assert '"SCREEN_RELEASE_REQUIRED=${params.PUSH}"' in building
-
-
 def test_the_screen_release_lands_where_the_venue_is_told_to_look():
     """Three files must agree, and nothing else connects them.
 
-    The script writes under ``src/``, the Dockerfile's COPY carries ``src/`` to
-    ``/opt/clearsignage/``, and the ENV tells the venue where that put it. A release placed
-    one folder off builds, publishes and is offered to nobody.
+    The entry places the run's signed release under ``src/``, the Dockerfile's COPY carries
+    ``src/`` to ``/opt/clearsignage/``, and the ENV tells the venue where that put it. A
+    release placed one folder off builds, publishes and is offered to nobody.
     """
-    assert 'SRC="${HERE}/${ADDON_DIR}/src"' in SCREEN_RELEASE
-    assert 'DEST="${SRC}/screen-release"' in SCREEN_RELEASE
+    assert 'mkdir -p "${HERE}/${ADDON_DIR}/src/screen-release"' in ENTRY
     directives = _dockerfile_directives()
     assert "COPY src/ /opt/clearsignage/" in directives
     assert "CLEARVENUE_SCREEN_RELEASE_DIR=/opt/clearsignage/screen-release" in directives
 
 
-def test_the_screen_release_is_built_by_clearsignage_s_own_packaging():
-    """Built and signed by the scripts in the commit being shipped, never a copy here.
+def test_the_screen_release_is_the_release_workflow_s_and_checked_by_the_commit_shipped():
+    """Signed once, by ClearSignage's release workflow, never here.
 
-    And checked against the keyring that commit bakes into screens before it is placed:
-    the last point where a release that would not verify is still this build's problem.
+    And checked against the keyring the commit being shipped bakes into screens before it is
+    placed: the last point where a release that would not verify is still this build's
+    problem. Driven in test_release_addon.py.
     """
-    assert '"${UPSTREAM}/packaging/build-release.sh"' in SCREEN_RELEASE
-    assert '"${UPSTREAM}/packaging/sign_update_manifest.py"' in SCREEN_RELEASE
-    assert "device/app/update_signing_public.json" in SCREEN_RELEASE
-    assert "verify_manifest_signature" in SCREEN_RELEASE
+    assert '"${HERE}/.upstream/clearsignage"' in ENTRY
+    assert "device/app/update_signing_public.json" in ENTRY
+    assert "verify_manifest_signature" in ENTRY
     assert not list(REPO.rglob("sign_update_manifest.py")), "a signer was copied into this repo"
-
-
-def _run_screen_release(tmp_path, **env):
-    """Run the script from a copy of this repo's scripts, so nothing here is touched."""
-    import os
-    import shutil
-    import subprocess
-
-    (tmp_path / "scripts").mkdir()
-    for name in ("build-screen-release.sh", "channel-env.sh", "channels.py"):
-        shutil.copy2(REPO / "scripts" / name, tmp_path / "scripts" / name)
-    clean = {key: value for key, value in os.environ.items() if key not in {
-        "UPDATE_SIGNING_PRIVATE_KEY", "SCREEN_RELEASE_REQUIRED", "SCREEN_RELEASE_VERSION",
-    }}
-    return subprocess.run(
-        ["bash", str(tmp_path / "scripts" / "build-screen-release.sh")],
-        env={**clean, "CHANNEL": "stable", **env},
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-
-
-def test_a_dry_run_without_the_key_says_it_carries_no_screen_release(tmp_path):
-    ran = _run_screen_release(tmp_path, SCREEN_RELEASE_VERSION="20261003.01")
-
-    assert ran.returncode == 0, ran.stderr
-    assert "carries NO screen release" in ran.stdout
-    assert not (tmp_path / "clearvenue" / "src" / "screen-release").exists()
-
-
-def test_a_published_image_without_the_key_stops_the_build(tmp_path):
-    ran = _run_screen_release(
-        tmp_path, SCREEN_RELEASE_VERSION="20261003.01", SCREEN_RELEASE_REQUIRED="true"
-    )
-
-    assert ran.returncode == 1
-    assert "must carry a signed screen release" in ran.stderr
-
-
-@pytest.mark.parametrize("version", ["", "1.4.0", "20261003.1", "20261003.01-rc1"])
-def test_a_version_a_screen_could_not_order_stops_the_build(tmp_path, version):
-    """A screen orders releases by parsing YYYYMMDD.NN and refuses what it cannot parse."""
-    ran = _run_screen_release(tmp_path, SCREEN_RELEASE_VERSION=version)
-
-    assert ran.returncode == 2
-    assert "YYYYMMDD.NN" in ran.stderr
-
-
-def test_both_publishers_build_the_screen_release():
-    """Actions is the alternative publisher; an image it published must carry the same."""
-    workflow = yaml.safe_load(
-        (REPO / ".github" / "workflows" / "homeassistant.yml").read_text(encoding="utf-8")
-    )
-    steps = workflow["jobs"]["build"]["steps"]
-    names = [step["name"] for step in steps]
-    building = steps[names.index("Build the screen release")]
-
-    assert names.index("Choose app version") < names.index("Build the screen release")
-    assert names.index("Build the screen release") < names.index("Build both architectures")
-    assert "./scripts/build-screen-release.sh" in building["run"]
-    assert building["env"]["SCREEN_RELEASE_VERSION"] == "${{ steps.version.outputs.version }}"
-    assert building["env"]["CLEARSIGNAGE_REF"] == "${{ steps.source.outputs.revision }}"
-    assert building["env"]["SCREEN_RELEASE_REQUIRED"] == "${{ inputs.push }}"
-    assert building["env"]["UPDATE_SIGNING_PRIVATE_KEY"] == "${{ secrets.UPDATE_SIGNING_PRIVATE_KEY }}"
+    assert not (REPO / "scripts" / "build-screen-release.sh").exists(), "a second release build"
 
 
 def test_a_public_url_reaches_the_venue_only_when_the_operator_set_one():
