@@ -67,7 +67,8 @@ RECORDING = {
     ),
 }
 
-DOCKER = '#!/bin/bash\nprintf "docker %s\\n" "$*" >> "$CALLS"\n[ "$1 $2" = "buildx inspect" ] && exit 1\nexit 0\n'
+# The real login consumes --password-stdin. Closing it early makes printf fail with SIGPIPE.
+DOCKER = '#!/bin/bash\nprintf "docker %s\\n" "$*" >> "$CALLS"\n[ "$1" = "login" ] && cat >/dev/null\n[ "$1 $2" = "buildx inspect" ] && exit 1\nexit 0\n'
 
 #: The verifier the fake ClearSignage commit ships: it trusts what its keyring names.
 FAKE_UPDATES = '''

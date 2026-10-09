@@ -29,6 +29,14 @@ same network ports.
 The app's **Documentation** tab covers configuration, backups, putting a screen on a
 dashboard, and what differs from a screen on a Raspberry Pi.
 
+## Staff communication
+
+Releases with staff communication enable **Messages** on Kitchen, Live and Tasks by default.
+For optional push-to-talk, enable Whisper and its Wyoming integration in Home Assistant,
+select it in **Settings → Voice assistants**, then allow microphone access through HTTPS
+ingress. The app's Core API permission lets ClearVenue use those configured speech providers.
+Typed communication remains available if speech is not configured.
+
 ## Updates
 
 Home Assistant offers each new release as an update to the app. Screens that joined the

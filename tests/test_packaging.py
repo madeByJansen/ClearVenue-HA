@@ -266,6 +266,13 @@ def test_the_privileges_the_epic_requires_are_asked_for():
     assert CONFIG["host_dbus"] is True
 
 
+def test_staff_voice_can_reach_core_without_supervisor_management_access():
+    """All channels must grant the Core STT adapter access to the configured providers."""
+    assert CONFIG["homeassistant_api"] is True
+    assert not CONFIG.get("hassio_api", False)
+    assert "hassio_role" not in CONFIG
+
+
 def test_no_privilege_is_asked_for_that_the_epic_does_not_justify():
     """An app asking for more than it needs is how a private repo becomes a liability."""
     assert "privileged" not in CONFIG, CONFIG.get("privileged")

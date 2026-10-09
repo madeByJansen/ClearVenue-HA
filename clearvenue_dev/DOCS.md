@@ -260,3 +260,19 @@ the lot on a back-office screen.
 Everything lives in the app's `/data` — one directory per screen, plus this venue's own
 connections. Removing a screen from the fleet page leaves its content on disk, so removing
 one by mistake is recoverable; uninstalling the app is not.
+
+## Staff messages and optional voice
+
+On releases with staff communication, **Settings → Staff communication** starts enabled.
+Open **Messages** on Kitchen, Live or Tasks. Typed messages work without speech setup.
+
+For push-to-talk, install and enable **Whisper**, configure its Wyoming integration, and
+select it under Home Assistant **Settings → Voice assistants**. Open ClearVenue through
+HTTPS ingress, grant microphone access and choose **Check speech providers** in the station's
+message settings. Hold the microphone, release, review or edit the text, then send.
+Recordings stop at 30 seconds and can be replayed by the recipient during the session.
+
+The app has Core API access for speech discovery and transcription. Its token stays on the
+server; it does not require a separate speech account when using local Whisper. If speech
+is unavailable, replay the recording and type the message. Ending the session expires audio;
+text history remains.

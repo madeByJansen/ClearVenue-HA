@@ -69,6 +69,11 @@ host_network: true
 # over D-Bus rather than running a second one that would contend for the port and lose.
 host_dbus: true
 
+# Staff push-to-talk discovers and calls configured STT providers (including local Whisper)
+# through Home Assistant Core. The injected token stays server-side. No Supervisor
+# management API access is needed.
+homeassistant_api: true
+
 # /data is mounted persistently for every app without being asked for, and it is the only
 # storage this app uses: /data/instances.json is the fleet, /data/instances/<n>/ is one
 # screen's whole world. No `map:` entry, because the app has no business in Home
