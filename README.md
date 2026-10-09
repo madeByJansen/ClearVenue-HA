@@ -54,3 +54,7 @@ request here runs (`.github/workflows/tests.yml`), and what a release runs first
 ## Support
 
 Questions and problems go to the person or company that set ClearVenue up for you.
+
+Secure staff HTTPS setup uses Nginx Proxy Manager with an existing certificate and a
+local DNS record. Its dedicated staff entry stays LAN-only; the normal LAN board address
+remains available. The app's default Supervisor role permits read-only discovery only.

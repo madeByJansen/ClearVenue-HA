@@ -71,8 +71,11 @@ host_dbus: true
 
 # Staff push-to-talk discovers and calls configured STT providers (including local Whisper)
 # through Home Assistant Core. The injected token stays server-side. No Supervisor
-# management API access is needed.
+# management API access is needed for speech.
 homeassistant_api: true
+# Read-only NPM and LAN discovery uses /supervisor/info and */info only.
+hassio_api: true
+hassio_role: default
 
 # /data is mounted persistently for every app without being asked for, and it is the only
 # storage this app uses: /data/instances.json is the fleet, /data/instances/<n>/ is one
@@ -122,6 +125,8 @@ backup_exclude:
   # An operator's own copies, kept for their own reasons and rotated on their own rule.
   # Backing them up would put several copies of the venue in every snapshot.
   - copies/
+  # Restored venues reconnect; neither NPM sessions nor proxy keys travel.
+  - secure-staff-secrets/
 backup_pre: /opt/venv/bin/python -m clearvenue.backup_hook
 
 options:
