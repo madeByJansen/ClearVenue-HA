@@ -276,3 +276,22 @@ The app has Core API access for speech discovery and transcription. Its token st
 server; it does not require a separate speech account when using local Whisper. If speech
 is unavailable, replay the recording and type the message. Ending the session expires audio;
 text history remains.
+
+
+## Secure staff HTTPS
+
+In ClearVenue Settings, choose **Set up secure staff access**. The wizard detects the
+Home Assistant Community Nginx Proxy Manager app and connects with your NPM account.
+Use an existing certificate in NPM, and add the exact local DNS A record shown by the
+wizard. NPM owns certificate issuance and renewal; ClearVenue does not collect DNS
+credentials. The resulting staff address stays LAN-only.
+
+Kitchen and general staff-board settings offer secure and local fallback addresses,
+including QR codes. Raw LAN access and typed communication continue without HTTPS.
+Voice input is a separate setting and needs browser microphone permission plus a speech
+provider such as Whisper.
+
+The app grants the default Supervisor role for read-only NPM/network discovery, never
+management permissions. NPM sessions and staff proxy keys are excluded from backups.
+After restore, reconnect and validate the staff address; use the LAN fallback meanwhile.
+Disconnecting NPM never deletes proxies, access lists or certificates.

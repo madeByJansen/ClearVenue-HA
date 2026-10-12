@@ -269,8 +269,9 @@ def test_the_privileges_the_epic_requires_are_asked_for():
 def test_staff_voice_can_reach_core_without_supervisor_management_access():
     """All channels must grant the Core STT adapter access to the configured providers."""
     assert CONFIG["homeassistant_api"] is True
-    assert not CONFIG.get("hassio_api", False)
-    assert "hassio_role" not in CONFIG
+    assert CONFIG["hassio_api"] is True
+    assert CONFIG["hassio_role"] == "default"
+    assert "secure-staff-secrets/" in CONFIG["backup_exclude"]
 
 
 def test_no_privilege_is_asked_for_that_the_epic_does_not_justify():
