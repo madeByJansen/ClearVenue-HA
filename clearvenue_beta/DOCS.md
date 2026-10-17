@@ -249,6 +249,14 @@ Once joined, **Groups** on each screen's row puts it in this venue's groups, and
 play on a group or on **one screen** — a Pi on a wall or a screen this machine runs. With this
 machine off, a Pi goes on playing what it has and catches up when it is back.
 
+**Manage** on each joined Pi, and on each group, changes it from here without opening it: its
+name, orientation, slideshow delay, display mode and time zone; *Identify screen*, *Reload
+display*, *Update software* and *Reboot*; a Wi-Fi network to save; and its PIN, one Pi at a time.
+This venue and the Pi are equals — a change made at the Pi shows here as *Set at the screen*,
+and the later change stands. A PIN or a Wi-Fi password is sealed so only that Pi can read it,
+and a Pi keeps the network it is on. If a Pi's address changes, it tells this venue itself.
+*Open* shows the Pi's own page inside Home Assistant, with **← back** to this one.
+
 ## Counting how busy a space is
 
 Open **Occupancy** from the Screens page. Add a space — a room you think of as one place —
