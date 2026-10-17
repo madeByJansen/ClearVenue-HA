@@ -251,10 +251,21 @@ machine off, a Pi goes on playing what it has and catches up when it is back.
 
 **Manage** on each joined Pi, and on each group, changes it from here without opening it: its
 name, orientation, slideshow delay, display mode and time zone; *Identify screen*, *Reload
-display*, *Update software* and *Reboot*; a Wi-Fi network to save; and its PIN, one Pi at a time.
+display*, *Update software* and *Reboot*; its Wi-Fi networks; and its PIN, one Pi at a time.
 This venue and the Pi are equals — a change made at the Pi shows here as *Set at the screen*,
-and the later change stands. A PIN or a Wi-Fi password is sealed so only that Pi can read it,
-and a Pi keeps the network it is on. If a Pi's address changes, it tells this venue itself.
+and the later change stands. A PIN or a Wi-Fi password is sealed so only that Pi can read it.
+If a Pi's address changes, it tells this venue itself.
+
+**Wi-Fi** lists every network each Pi has saved — for a group, every network any Pi in it has.
+Save a new one before you change the venue's Wi-Fi, change a saved one's preference or password,
+or **Forget** one, whoever saved it. A network a Pi is using is never forgotten, so a Pi cannot
+be cut off from here.
+
+**If this machine's address changes** — a router restart hands it another one — the Pis find it
+again by themselves within a couple of minutes: each checks it is still this venue, by the key it
+pinned when it joined, before it follows. Nothing is joined again. A fixed address (a DHCP
+reservation for this machine in your router) is still the better setup, and a move to another
+network range is not followed.
 *Open* shows the Pi's own page inside Home Assistant, with **← back** to this one.
 
 ## Counting how busy a space is
