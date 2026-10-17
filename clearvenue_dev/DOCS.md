@@ -230,6 +230,25 @@ page finds ClearSignage screens elsewhere on your network and joins them to this
 they receive its prices too. Joining is always explicit — nothing is enrolled by being
 discovered — and letting one go afterwards affects only that screen.
 
+### Joining a Raspberry Pi
+
+Either side can start it, and both need a code, so nobody joins a screen by accident:
+
+- **From here:** *Other screens* → **Look for screens**, then **Join** with the code the Pi
+  shows (its *Connect to your venue* button).
+- **From the Pi:** its **Settings › Venue** lists this venue once the Pi has looked for
+  screens on your network. Press **Show a join code** on *Other screens* here and type that code
+  on the Pi.
+
+The Pi is told to reach this machine at `http://<host_ip>:8099` — the address shown on
+*Other screens* — and a join only says *joined* once the Pi has reached it and checked it is
+really this venue. If a join is refused with *could not reach this venue at …*, that address is
+the thing to fix (see `host_ip` above).
+
+Once joined, **Groups** on each screen's row puts it in this venue's groups, and a schedule can
+play on a group or on **one screen** — a Pi on a wall or a screen this machine runs. With this
+machine off, a Pi goes on playing what it has and catches up when it is back.
+
 ## Counting how busy a space is
 
 Open **Occupancy** from the Screens page. Add a space — a room you think of as one place —
