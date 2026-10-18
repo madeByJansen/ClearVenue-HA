@@ -230,6 +230,47 @@ page finds ClearSignage screens elsewhere on your network and joins them to this
 they receive its prices too. Joining is always explicit — nothing is enrolled by being
 discovered — and letting one go afterwards affects only that screen.
 
+### Joining a Raspberry Pi
+
+Either side can start it, and both need a code, so nobody joins a screen by accident:
+
+- **From here:** *Other screens* → **Look for screens**, then **Join** with the code the Pi
+  shows (its *Connect to your venue* button).
+- **From the Pi:** its **Settings › Venue** lists this venue once the Pi has looked for
+  screens on your network. Press **Show a join code** on *Other screens* here and type that code
+  on the Pi.
+
+The Pi is told to reach this machine at `http://<host_ip>:8099` — the address shown on
+*Other screens* — and a join only says *joined* once the Pi has reached it and checked it is
+really this venue. If a join is refused with *could not reach this venue at …*, that address is
+the thing to fix (see `host_ip` above).
+
+Once joined, **Groups** on each screen's row puts it in this venue's groups, and a schedule can
+play on a group or on **one screen** — a Pi on a wall or a screen this machine runs. With this
+machine off, a Pi goes on playing what it has and catches up when it is back.
+
+**Manage** on each joined Pi, and on each group, changes it from here without opening it: its
+name, orientation, slideshow delay, display mode, time zone and country (which sets its Wi-Fi
+region); *Identify screen*, *Reload display*, *Restart app*, *Update software* and *Reboot*; its
+Wi-Fi networks; and its PIN, one Pi at a time.
+This venue and the Pi are equals — a change made at the Pi shows here as *Set at the screen*,
+and the later change stands. A PIN or a Wi-Fi password is sealed so only that Pi can read it.
+If a Pi's address changes, it tells this venue itself.
+
+**Wi-Fi** lists every network each Pi has saved — for a group, every network any Pi in it has.
+Save a new one before you change the venue's Wi-Fi, change a saved one's preference or password,
+or **Forget** one, whoever saved it. A network a Pi is using is never forgotten, so a Pi cannot
+be cut off from here. A Pi put in a group after the group's network was saved is named on that
+network's row; **Send to new screens** asks for the password again and sends it to those Pis.
+
+**If this machine's address changes** — a router restart hands it another one — the Pis find it
+again by themselves within a couple of minutes: each checks it is still this venue, by the key it
+pinned when it joined, before it follows. Nothing is joined again, and this machine also tells
+each Pi it can reach where it is now, so a move to another network range is followed too where
+your router still connects the two. A fixed address (a DHCP reservation for this machine in your
+router) is still the better setup.
+*Open* shows the Pi's own page inside Home Assistant, with **← back** to this one.
+
 ## Counting how busy a space is
 
 Open **Occupancy** from the Screens page. Add a space — a room you think of as one place —
