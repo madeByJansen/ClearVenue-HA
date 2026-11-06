@@ -11,8 +11,8 @@
 #   validate     this repository's own tests, and the channel folders in step
 #   source       fetch-source.sh, from the release workflow's own checkout at its commit
 #   screens      the run's signed screen release, checked, into <addon>/src/screen-release
-#   version      stable and beta: the release's number, or a third part when the same
-#                release is built again; dev: the run's number (the dev counter)
+#   version      stable and beta: the release's number or a new dated add-on version
+#                for a rebuild; dev: the run's number (the dev counter)
 #   bundle       build-venue-bundle.sh: the bundle, and the image's context from it
 #   images       both architectures, then one multi-architecture tag and `latest`
 #   publish      the bundle (once per release), the version recorded on main, old pruned
@@ -118,13 +118,15 @@ say "Screen release ${VERSION} (${CHANNEL}) placed in ${ADDON_DIR}/src/screen-re
 
 # ── version ──────────────────────────────────────────────────────────────────────
 # Dev's number is already its counter (the release workflow asked it); a dry run reads no
-# registry. Otherwise the release's own number, or a third part if it was built before.
+# registry. A published rebuild gets a new add-on version and can reuse the existing bundle.
+PUSH_BUNDLE=true
 if [ "${CHANNEL}" = dev ] || [ "${DRY_RUN}" = true ]; then
     APP_VERSION="$("${PYTHON}" "${HERE}/scripts/next-image-version.py" --channel "${CHANNEL}" \
         --set "${VERSION}")"
 else
-    APP_VERSION="$(GHCR_TOKEN="${GHCR_TOKEN}" "${PYTHON}" "${HERE}/scripts/next-image-version.py" \
-        --channel "${CHANNEL}" --release "${VERSION}")"
+    plan="$(GHCR_TOKEN="${GHCR_TOKEN}" "${PYTHON}" "${HERE}/scripts/next-image-version.py" \
+        --channel "${CHANNEL}" --release "${VERSION}" --release-plan)"
+    read -r APP_VERSION PUSH_BUNDLE <<< "${plan}"
 fi
 say "ClearVenue ${CHANNEL} ${APP_VERSION}, carrying ClearSignage ${VERSION} (${CLEARSIGNAGE_REF})"
 
@@ -174,7 +176,7 @@ fi
 "${DOCKER}" buildx imagetools inspect "${IMAGE}:${APP_VERSION}"
 # Once per release: built again, the add-on carries the same commit, whose bundle the
 # package already holds under the release's own number.
-if [ "${APP_VERSION}" = "${VERSION}" ]; then
+if [ "${PUSH_BUNDLE}" = true ]; then
     GHCR_USERNAME="${GHCR_USERNAME}" GHCR_TOKEN="${GHCR_TOKEN}" \
         "${PYTHON}" "${HERE}/scripts/push-venue-bundle.py" --channel "${CHANNEL}" --version "${VERSION}"
 else

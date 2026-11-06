@@ -46,8 +46,9 @@ venue update themselves from it afterwards, at a quiet moment.
 
 This repository holds the packaging; ClearSignage's one release workflow builds and publishes
 it. A release run that ticks the Home Assistant destination calls `scripts/release-addon.sh`
-with the source it built and the screen release it signed, so the add-on, the screen release
-inside it and the venue bundle carry that release's version. A dry run builds both
+with the source it built and the screen release it signed. All new versions use
+`YYYYMMDD.NN`. A rebuild can receive a newer add-on version while carrying the same
+signed screen release and venue bundle. A dry run builds both
 architectures and publishes nothing. `scripts/validate-packaging.sh` is what every pull
 request here runs (`.github/workflows/tests.yml`), and what a release runs first.
 

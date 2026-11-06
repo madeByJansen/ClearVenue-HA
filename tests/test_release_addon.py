@@ -50,7 +50,11 @@ RECORDING = {
         "with open(os.environ['CALLS'], 'a') as log:\n"
         "    log.write('version ' + ' '.join(args) + '\\n')\n"
         "given = args[args.index('--set') + 1] if '--set' in args else args[args.index('--release') + 1]\n"
-        "print(os.environ.get('FAKE_APP_VERSION') or given)\n"
+        "version = os.environ.get('FAKE_APP_VERSION') or given\n"
+        "if '--release-plan' in args:\n"
+        "    print(version, os.environ.get('FAKE_PUSH_BUNDLE', 'true'))\n"
+        "else:\n"
+        "    print(version)\n"
     ),
     "push-venue-bundle.py": (
         "import os, sys\n"
@@ -226,7 +230,7 @@ def test_a_stable_release_is_built_published_recorded_and_pruned_in_that_order(b
         "prune",
         "docker logout ghcr.io",
     ]
-    assert said[1] == f"version --channel stable --release {VERSION}"
+    assert said[1] == f"version --channel stable --release {VERSION} --release-plan"
     assert said[2] == f"bundle {VERSION} required=true screens=yes", "the screen release rides in it"
     assert f"--tag {image}:{VERSION} --tag {image}:latest" in said[9]
     assert said[11] == f"push-bundle --channel stable --version {VERSION}"
@@ -253,13 +257,14 @@ def test_each_channel_builds_both_architectures_of_its_own_image_from_the_releas
 
 def test_a_release_built_again_is_a_new_add_on_carrying_the_same_bundle(bench):
     """Home Assistant needs a new version to offer an update; the code inside has not changed."""
-    ran, said = _run(bench, FAKE_APP_VERSION=f"{VERSION}.1")
+    app_version = "20261008.04"
+    ran, said = _run(bench, FAKE_APP_VERSION=app_version, FAKE_PUSH_BUNDLE="false")
 
     assert ran.returncode == 0, ran.stderr
     assert f"bundle {VERSION} required=true screens=yes" in said
-    assert any(f"{_image('stable')}:{VERSION}.1-aarch64" in line for line in said)
+    assert any(f"{_image('stable')}:{app_version}-aarch64" in line for line in said)
     assert not [line for line in said if line.startswith("push-bundle")], "one bundle per release"
-    assert f"record {VERSION}.1 on main" in said
+    assert f"record {app_version} on main" in said
     assert "this rebuild publishes the add-on only" in ran.stdout
 
 
