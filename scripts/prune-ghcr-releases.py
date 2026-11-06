@@ -43,8 +43,8 @@ def version_key(version: str) -> tuple[int, ...]:
 def versions_to_delete(versions: list[dict[str, object]], current: str) -> list[int]:
     """Select tagged release objects while preserving N and N-1.
 
-    Untagged objects are intentionally ignored: they can be platform manifests referenced
-    by one of the two retained multi-architecture indexes.
+    Untagged objects can be platform manifests referenced by a retained index. Venue
+    bundles have their own release numbers, so retain their latest two independently.
     """
     releases = {
         release
@@ -63,13 +63,20 @@ def versions_to_delete(versions: list[dict[str, object]], current: str) -> list[
     if older:
         retained.add(older[-1])
     doomed_releases = set(older) - retained
-
+    bundles: list[tuple[tuple[int, ...], int]] = []
     selected = []
     for item in versions:
         tags = item.get("metadata", {}).get("container", {}).get("tags", [])
         release = release_from_tags(tags)
-        if release in doomed_releases:
-            selected.append(int(item["id"]))
+        if release is None:
+            continue
+        identifier = int(item["id"])
+        if f"{release}-bundle" in tags:
+            bundles.append((version_key(release), identifier))
+        if release in doomed_releases and "bundle" not in tags:
+            selected.append(identifier)
+    protected = {identifier for _, identifier in sorted(bundles)[-2:]}
+    selected = [identifier for identifier in selected if identifier not in protected]
     return selected
 
 

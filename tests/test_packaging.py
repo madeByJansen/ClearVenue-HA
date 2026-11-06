@@ -37,6 +37,7 @@ def packaging_channel(request):
     APP = REPO / folder
     CONFIG = yaml.safe_load((APP / "config.yaml").read_text())
     BUILD = yaml.safe_load((APP / "build.yaml").read_text())
+    return request.param
 
 
 def _load_script(filename: str, module_name: str):
@@ -155,12 +156,15 @@ def test_a_manifest_with_no_version_line_is_an_error_not_a_silent_no_op():
         chooser.stamp_version("---\nname: ClearSignage\n", "20260831.01")
 
 
-def test_the_manifest_version_is_a_tag_the_registry_and_the_pruner_both_accept():
+def test_the_manifest_version_is_a_tag_the_registry_and_the_pruner_both_accept(packaging_channel):
     """One string has to be three things: a Docker tag, what the Supervisor tracks, and
     something `prune-ghcr-releases.py` can order. A hand-written "1.0-beta" would publish
     and then quietly stop being prunable."""
     pruner = _load_pruner()
-    assert re.fullmatch(r"\d{8}\.\d{2}", CONFIG["version"])
+    # Jenkins already published this exact legacy tag. Keep offering it until a successful
+    # build records its replacement. The stamper refuses to write any three-part version.
+    if (packaging_channel, CONFIG["version"]) != ("stable", "20261105.03.1"):
+        assert _load_version_chooser().RELEASE.fullmatch(CONFIG["version"])
     assert pruner.release_from_tags([CONFIG["version"]]) == CONFIG["version"]
 
     # The first dated release had to be newer than the legacy version.  Once Jenkins

@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 """Choose the app version for this build, and write it into the manifest.
 
-**Stable and beta take ClearSignage's release number** (``--release``): one version
-names one commit everywhere it ships, so the add-on says the number of the ClearSignage
-release it carries, and a rebuild of the same commit adds a third part. What follows is how
-the development channel, which builds unreleased commits, still chooses its own.
+Stable and beta use the ClearSignage release number when it is newer than the published
+add-on. A rebuild gets a fresh dated add-on number. Its signed screen release and venue
+bundle keep their ClearSignage release number. Dev chooses its own dated counter.
 
 `YYYYMMDD.NN` from the build's UTC date, the same scheme ClearSignage releases use — and
 chosen the same way, from the artefacts that already exist rather than from a number
@@ -97,7 +96,8 @@ def next_version(tags: Iterable[str], requested_date: dt.date) -> str:
 
 
 #: A ClearSignage release number, which stable and beta take as their own.
-RELEASE = re.compile(r"^\d{8}\.\d{2}$")
+RELEASE = re.compile(r"[0-9]{8}\.[0-9]{2}")
+_PUBLISHED = re.compile(r"([0-9]{8}\.[0-9]{2})(?:\.[1-9][0-9]*)?")
 
 
 def _released(tag: str) -> str:
@@ -108,30 +108,24 @@ def _released(tag: str) -> str:
     return tag
 
 
-def version_for_release(tags: Iterable[str], release: str) -> str:
-    """Return the add-on version for ClearSignage ``release``.
-
-    The release's own number the first time it is published in this channel, so the add-on,
-    the screen release inside it and the venue bundle all say the same thing. Built again
-    from the same commit — a change to this repository's packaging only — it is the release
-    with a third part, ``YYYYMMDD.NN.n``: Home Assistant offers an update only for a new
-    version, and the code inside has not changed, so the number a screen sees has not either.
-    """
+def version_for_release(tags: Iterable[str], release: str, requested_date: dt.date) -> str:
+    """Allocate a dated add-on version newer than every published version."""
     if not RELEASE.fullmatch(release):
         raise ValueError(f"{release!r} is not a ClearSignage release number (YYYYMMDD.NN)")
-    published = {_released(str(tag)) for tag in tags}
-    if release not in published:
+    published = {
+        match[1] for tag in tags if (match := _PUBLISHED.fullmatch(_released(str(tag))))
+    }
+    latest = max(published, default="")
+    if release > latest:
         return release
-    rebuilds = [
-        int(version[len(release) + 1 :])
-        for version in published
-        if version.startswith(f"{release}.") and version[len(release) + 1 :].isdigit()
-    ]
-    return f"{release}.{max(rebuilds, default=0) + 1}"
+    # A historical rebuild like 20261105.03.1 already occupied the .03 slot.
+    return next_version(published, max(requested_date, dt.date.fromisoformat(latest[:8])))
 
 
 def stamp_version(manifest: str, version: str) -> str:
     """Return the manifest with its version line replaced, comments and all else intact."""
+    if not RELEASE.fullmatch(version):
+        raise ValueError(f"{version!r} is not an add-on version (YYYYMMDD.NN)")
     stamped, replacements = VERSION_LINE.subn(f'version: "{version}"', manifest, count=1)
     if replacements != 1:
         raise ValueError("the manifest has no `version:` line to stamp")
@@ -176,13 +170,16 @@ def main(argv: list[str]) -> int:
     parser.add_argument(
         "--release",
         default="",
-        help=(
-            "the ClearSignage release this build is: its number, or a third part on "
-            "a rebuild. Stable and beta pass it; dev keeps its own counter"
-        ),
+        help="the ClearSignage release this add-on carries",
+    )
+    parser.add_argument(
+        "--release-plan", action="store_true",
+        help="print the chosen add-on version and whether its screen release needs a bundle push",
     )
     args = parser.parse_args(argv)
 
+    if args.release_plan and (not args.release or args.chosen or args.stdin):
+        parser.error("--release-plan requires --release and a registry lookup")
     if args.stdin and not args.chosen:
         parser.error("--stdin stamps a version that is already known; pass --set")
     settings = channel_settings(args.channel)
@@ -192,6 +189,7 @@ def main(argv: list[str]) -> int:
             parser.error("--config does not match the selected channel")
         args.config = expected_config
 
+    push_bundle = True
     try:
         if args.chosen:
             version = args.chosen
@@ -204,7 +202,8 @@ def main(argv: list[str]) -> int:
             )
             published = published_tags(args.owner, settings["package"], token)
             if args.release:
-                version = version_for_release(published, args.release)
+                version = version_for_release(published, args.release, chosen_date)
+                push_bundle = f"{args.release}-bundle" not in published
             else:
                 version = next_version(published, chosen_date)
 
@@ -225,7 +224,10 @@ def main(argv: list[str]) -> int:
         print(f"ERROR: could not read the published versions: {error}", file=sys.stderr)
         return 1
 
-    print(version)
+    if args.release_plan:
+        print(version, "true" if push_bundle else "false")
+    else:
+        print(version)
     return 0
 
 
