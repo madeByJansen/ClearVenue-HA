@@ -120,13 +120,15 @@ def version_for_release(tags: Iterable[str], release: str) -> str:
     if not RELEASE.fullmatch(release):
         raise ValueError(f"{release!r} is not a ClearSignage release number (YYYYMMDD.NN)")
     published = {_released(str(tag)) for tag in tags}
-    if release not in published:
-        return release
+    prefix = f"{release}."
     rebuilds = [
-        int(version[len(release) + 1 :])
+        int(number)
         for version in published
-        if version.startswith(f"{release}.") and version[len(release) + 1 :].isdigit()
+        if version.startswith(prefix)
+        and re.fullmatch(r"[1-9][0-9]*", number := version[len(prefix) :])
     ]
+    if release not in published and not rebuilds:
+        return release
     return f"{release}.{max(rebuilds, default=0) + 1}"
 
 

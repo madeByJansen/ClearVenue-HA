@@ -23,6 +23,7 @@ from channels import CHANNELS, channel_settings
 import ghcr_api  # noqa: E402  (the module sits beside this command, not on the path)
 
 
+ADDON_REBUILD = re.compile(r"([0-9]{8}\.[0-9]{2})\.[1-9][0-9]*")
 RELEASE_TAG = re.compile(r"^(\d+(?:\.\d+)+)(?:-(aarch64|amd64|bundle))?$")
 CHANNEL_GIT_TAG = re.compile(r"^(?P<channel>[a-z]+)/v(?P<release>\d+(?:\.\d+)+)$")
 LEGACY_GIT_TAG = re.compile(r"^v\d+(?:\.\d+)+$")
@@ -43,8 +44,8 @@ def version_key(version: str) -> tuple[int, ...]:
 def versions_to_delete(versions: list[dict[str, object]], current: str) -> list[int]:
     """Select tagged release objects while preserving N and N-1.
 
-    Untagged objects are intentionally ignored: they can be platform manifests referenced
-    by one of the two retained multi-architecture indexes.
+    Untagged objects can be platform manifests referenced by a retained index. A retained
+    add-on rebuild still uses the original release's separately published venue bundle.
     """
     releases = {
         release
@@ -63,12 +64,17 @@ def versions_to_delete(versions: list[dict[str, object]], current: str) -> list[
     if older:
         retained.add(older[-1])
     doomed_releases = set(older) - retained
+    retained_bundles = {
+        f"{match[1]}-bundle"
+        for release in retained
+        if (match := ADDON_REBUILD.fullmatch(release))
+    }
 
     selected = []
     for item in versions:
         tags = item.get("metadata", {}).get("container", {}).get("tags", [])
         release = release_from_tags(tags)
-        if release in doomed_releases:
+        if release in doomed_releases and retained_bundles.isdisjoint(tags):
             selected.append(int(item["id"]))
     return selected
 

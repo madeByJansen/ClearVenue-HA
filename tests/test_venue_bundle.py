@@ -420,6 +420,23 @@ def test_an_old_release_s_bundle_is_pruned_with_its_images():
     assert pruner.published_releases(versions, doomed) == {"20261002.01", "20261003.01"}
 
 
+def test_a_second_addon_rebuild_preserves_the_shared_venue_bundle():
+    pruner = _load("prune-ghcr-releases.py", "prune_ghcr_releases")
+    tagged = [
+        ["20261105.02-bundle"],
+        ["20261105.03"],
+        ["20261105.03-amd64"],
+        ["20261105.03-bundle", "bundle"],
+        ["20261105.03.1"],
+        ["20261105.03.2", "latest"],
+    ]
+    versions = [
+        {"id": number, "metadata": {"container": {"tags": tags}}}
+        for number, tags in enumerate(tagged)
+    ]
+    assert pruner.versions_to_delete(versions, "20261105.03.2") == [0, 1, 2]
+
+
 def test_the_tags_of_releases_whose_images_are_gone_are_selected_and_no_others():
     pruner = _load("prune-ghcr-releases.py", "prune_ghcr_releases")
     tags = [

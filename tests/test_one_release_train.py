@@ -40,6 +40,8 @@ def test_a_rebuild_of_a_release_adds_a_third_part_and_counts_up():
     assert chooser.version_for_release(first, "20261009.02") == "20261009.02.1"
     again = [*first, "20261009.02.1", "20261009.02.1-aarch64"]
     assert chooser.version_for_release(again, "20261009.02") == "20261009.02.2"
+    # The original image tags may have been pruned while rebuilds are still published.
+    assert chooser.version_for_release(["20261009.02.2-aarch64"], "20261009.02") == "20261009.02.3"
 
 
 @pytest.mark.parametrize("release", ["20261009.2", "v20261009.02", "20261009.02.1", ""])
